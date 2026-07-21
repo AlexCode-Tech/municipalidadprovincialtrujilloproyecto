@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ADMIN
+  NEGOCIO
+  CAJERO
+  INSPECTOR
+}
+
+enum EstadoTramite {
+  BORRADOR
+  PAGO_PENDIENTE
+  PAGO_RECHAZADO
+  INSPECCION_PROGRAMADA
+  OBSERVADO
+  APROBADO
+  DENEGADO
+  VENCIDO
+  PENDIENTE_PAGO
+  EN_INSPECCION
+  SUBSANADO
+  RECHAZADO
+}
+
+enum EstadoPago {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+enum MetodoPago {
+  TARJETA
+  YAPE
+  EFECTIVO
+  MIXTO
+}
+
+enum ResultadoInspeccion {
+  PENDIENTE
+  CONFORME
+  OBSERVADO
+}
+
+enum EstadoCaja {
+  ABIERTA
+  SOLICITADO_CIERRE
+  CERRADA
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nombre       String
+  email        String   @unique
+  passwordHash String
+  rol          Rol
+  estado       String   @default("ACTIVO") // ACTIVO o INACTIVO
+  creadoEn     DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  negocio      Negocio?
+  tramitesRegistrados Tramite[] @relation("CajeroTramites")
+  inspecciones Inspeccion[] @relation("InspectorInspecciones")
+  cajaSessions CajaSession[] @relation("CajeroSessions")
+}
+
+model Negocio {
+  id               String   @id @default(cuid())
+  ruc              String   @unique @db.VarChar(11)
+  razonSocial      String
+  domicilioFiscal String
+  distrito         String
+  provincia        String   @default("Trujillo")
+  departamento     String   @default("La Libertad")
+  telefono         String?
+  usuarioId        String   @unique
+  usuario          Usuario  @relation(fields: [usuarioId], references: [id])
+  tramites         Tramite[]
+  tarjetas         TarjetaGuardada[]
+  creadoEn         DateTime @default(now())
+  actualizadoEn    DateTime @updatedAt
+}
+
+model Tramite {
+  id                 String        @id @default(cuid())
+  codigo             String        @unique
+  negocioId          String
+  negocio            Negocio       @relation(fields: [negocioId], references: [id])
+  cajeroId           String?
+  cajero             Usuario?      @relation("CajeroTramites", fields: [cajeroId], references: [id])
+  estado             EstadoTramite @default(BORRADOR)
+  monto              Decimal       @default(180) @db.Decimal(10, 2)
+  planoUrl           String?
+  planosUrl          String?       // Alias para compatibilidad de nomenclatura
+  planoValidado      Boolean       @default(false)
+  esRenovacion       Boolean       @default(false)
+  confirmacionSinCambios Boolean   @default(false)
+  
+  // Nuevos campos
+  representanteId    String?
+  direccionTrujillo  String?
+  rubro              String?
+  areaM2             Float?
+  tipoTramite        String        @default("INICIAL") // INICIAL o RENOVACION
+  poseeCambiosEstructura Boolean   @default(false)
+  zonificacionValida Boolean       @default(true)
+
+  pagos              Pago[]
+  inspecciones       Inspeccion[]
+  licencia           Licencia?
+  creadoEn           DateTime      @default(now())
+  actualizadoEn      DateTime      @updatedAt
+}
+
+model Pago {
+  id                String      @id @default(cuid())
+  tramiteId         String
+  tramite           Tramite     @relation(fields: [tramiteId], references: [id])
+  cajaSessionId     String?
+  cajaSession       CajaSession? @relation("SessionPagos", fields: [cajaSessionId], references: [id])
+  mercadoPagoId     String?     @unique
+  estado            EstadoPago
+  metodo            MetodoPago
+  monto             Decimal     @db.Decimal(10, 2)
+
+  // Desglose de cobro físico/digital
+  montoEfectivo     Decimal     @default(0) @db.Decimal(10, 2)
+  montoYape         Decimal     @default(0) @db.Decimal(10, 2)
+  montoTarjeta      Decimal     @default(0) @db.Decimal(10, 2)
+  tipoComprobante   String      @default("FACTURA") // FACTURA, BOLETA
+  numeroFactura     String?
+  fechaPago         DateTime    @default(now())
+
+  detalleEstado     String?
+  creadoEn          DateTime    @default(now())
+  actualizadoEn     DateTime    @updatedAt
+}
+
+model CajaSession {
+  id                  String      @id @default(cuid())
+  cajeroId            String
+  cajero              Usuario     @relation("CajeroSessions", fields: [cajeroId], references: [id])
+  montoApertura       Decimal     @db.Decimal(10, 2)
+  montoCierreEfectivo Decimal?    @db.Decimal(10, 2)
+  montoCierreYape     Decimal?    @db.Decimal(10, 2)
+  diferenciaArqueo    Decimal?    @db.Decimal(10, 2)
+  justificacionArqueo String?     @db.Text
+  estado              EstadoCaja  @default(ABIERTA)
+  fechaApertura       DateTime    @default(now())
+  fechaCierre         DateTime?
+  pagos               Pago[]      @relation("SessionPagos")
+  creadoEn            DateTime    @default(now())
+  actualizadoEn       DateTime    @updatedAt
+}
+
+model TarjetaGuardada {
+  id                String   @id @default(cuid())
+  negocioId         String
+  negocio           Negocio  @relation(fields: [negocioId], references: [id])
+  customerId        String
+  cardId            String
+  ultimosCuatro     String?
+  activa            Boolean  @default(true)
+  creadoEn          DateTime @default(now())
+  @@unique([negocioId, cardId])
+}
+
+model Inspeccion {
+  id              String               @id @default(cuid())
+  tramiteId       String
+  tramite         Tramite              @relation(fields: [tramiteId], references: [id])
+  inspectorId     String
+  inspector       Usuario              @relation("InspectorInspecciones", fields: [inspectorId], references: [id])
+  numeroVisita    Int
+  fechaProgramada DateTime
+  bloqueHorario   String?
+  resultado       ResultadoInspeccion  @default(PENDIENTE)
+  observaciones   String?
+  completadaEn    DateTime?
+  creadoEn        DateTime             @default(now())
+  @@unique([tramiteId, numeroVisita])
+  @@index([inspectorId, fechaProgramada, resultado])
+}
+
+model Licencia {
+  id          String   @id @default(cuid())
+  numero      String   @unique
+  tramiteId   String   @unique
+  tramite     Tramite  @relation(fields: [tramiteId], references: [id])
+  emitidaEn   DateTime @default(now())
+  venceEn     DateTime
+  pdfUrl      String?
+}
+
+model SuscripcionPush {
+  id        String   @id @default(cuid())
+  usuarioId String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  creadoEn  DateTime @default(now())
+}
+
+model NotificacionEmail {
+  id           String   @id @default(cuid())
+  destinoEmail String
+  asunto       String
+  mensaje      String
+  fechaEnvio   DateTime @default(now())
+}
+
+model DepositoMunicipal {
+  id            String   @id @default(cuid())
+  monto         Decimal  @db.Decimal(10, 2)
+  concepto      String
+  referencia    String?
+  registradoPor String
+  creadoEn      DateTime @default(now())
+}

@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Licencias de Funcionamiento — Municipalidad Provincial de Trujillo
 
-## Getting Started
+Aplicación full-stack Next.js para solicitudes presenciales y digitales, pagos, inspecciones, emisión de PDF y renovación de licencias municipales. Solo contempla los roles **Negocio**, **Cajero** e **Inspector** y los 12 distritos definidos para el proyecto.
 
-First, run the development server:
+## Inicio rápido
 
 ```bash
+npm install
+copy .env.example .env.local
+npm run db:generate
+npm run db:migrate
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre `http://localhost:3000`. Para recorrer la interfaz sin crear usuarios:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Negocio: `negocio@demo.pe` / `demo123`
+- Cajero: `cajero@demo.pe` / `demo123`
+- Inspector: `inspector@demo.pe` / `demo123`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Configuración
 
-## Learn More
+Completa `.env.local` con PostgreSQL/Neon, Mercado Pago, Vercel Blob, Upstash Redis/QStash, SMTP y VAPID. Las variables públicas deben usar el prefijo `NEXT_PUBLIC_`; en particular, la clave de frontend de Mercado Pago es `NEXT_PUBLIC_MP_PUBLIC_KEY`.
 
-To learn more about Next.js, take a look at the following resources:
+El cron de Vercel se ejecuta a las 13:00 UTC (08:00 en Perú) y revisa inspecciones del día, licencias vencidas y checkpoints de renovación próximos. Los endpoints internos de QStash validan la firma del mensaje.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Flujo principal
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. El negocio o cajero registra RUC, razón social, domicilio, uno de los 12 distritos y plano.
+2. Se procesa el pago fijo de S/180 por tarjeta o Yape.
+3. Al aprobarse, se asigna la fecha más próxima disponible al único inspector.
+4. Una primera observación programa otra visita a 30 días hábiles; una segunda observación deniega el trámite.
+5. La conformidad genera una licencia vigente por un año y descargable en PDF.
+6. Antes de renovar, el negocio debe confirmar que no hubo cambios. Solo entonces QStash puede cobrar la tarjeta guardada; Yape requiere pago manual.
+7. Al vencer, se notifica por correo y push, y el PDF incorpora la marca de agua `VENCIDA`.
 
-## Deploy on Vercel
+## Despliegue en Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Conecta el repositorio, configura las variables de entorno y crea un Blob Store. Para producción usa una `DATABASE_URL` de Neon con SSL y registra la URL pública del webhook de Mercado Pago en `MP_WEBHOOK_URL`.
