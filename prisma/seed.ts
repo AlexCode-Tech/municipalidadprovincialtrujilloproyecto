@@ -7,11 +7,11 @@ async function main() {
   
   // 1. Administrador Único
   await prisma.usuario.upsert({
-    where: { email: "admin@demo.pe" },
+    where: { email: "alexpsm2005@gmail.com" },
     update: { estado: "ACTIVO" },
     create: {
       nombre: "Administrador Único",
-      email: "admin@demo.pe",
+      email: "alexpsm2005@gmail.com",
       passwordHash,
       rol: "ADMIN",
       estado: "ACTIVO"
