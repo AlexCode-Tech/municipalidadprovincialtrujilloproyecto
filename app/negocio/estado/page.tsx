@@ -301,6 +301,16 @@ export default function EstadoPage() {
             >
               Consultar otro RUC
             </button>
+            {!isBorradorOrPago && (
+              <a
+                href={`/api/factura-pdf/${tramite.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="focus-ring rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+              >
+                <FileText size={16} /> Ver Factura PDF
+              </a>
+            )}
             {isAprobado ? (
               <Link href="/negocio/licencia" className="focus-ring rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors">
                 Ver mi licencia

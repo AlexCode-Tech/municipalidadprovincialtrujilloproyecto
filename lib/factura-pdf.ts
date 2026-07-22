@@ -2,23 +2,25 @@ import PDFDocument from "pdfkit";
 
 export type DatosFacturaPdf = {
   numeroComprobante: string;
-  fechaFormateada: string;
-  metodoPago: string;
+  fechaEmision: string;
+  fechaVencimiento?: string;
+  metodoPago?: string;
   razonSocial: string;
   ruc: string;
   domicilioFiscal: string;
-  hashSimulado: string;
+  codigoTramite?: string;
+  hashSimulado?: string;
 };
 
 export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
-      margin: 40,
+      margin: 30,
       info: {
         Title: `Factura Electrónica ${datos.numeroComprobante}`,
         Author: "Municipalidad Provincial de Trujillo",
-        Subject: "Comprobante de Pago Electrónico",
+        Subject: "Representación Impresa de Factura Electrónica SUNAT",
       },
     });
 
@@ -28,103 +30,168 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     doc.on("error", reject);
 
     const pageWidth = doc.page.width;
-    const margin = 40;
+    const margin = 30;
     const contentWidth = pageWidth - margin * 2;
+    const contentHeight = doc.page.height - margin * 2;
 
-    // Encabezado institucional
-    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(14).text("MUNICIPALIDAD PROVINCIAL DE TRUJILLO", margin, 40, { width: contentWidth - 200 });
-    const headerY = doc.y + 4;
-    doc.fillColor("#333333").font("Helvetica").fontSize(9.5).text("RUC: 20145480033", margin, headerY);
-    doc.text("Av. España Nro. 456", margin);
-    doc.text("Tel: 935082862", margin);
+    // Bloque Exterior: Recuadro bordea toda la página
+    doc.rect(margin, margin, contentWidth, contentHeight).lineWidth(1).strokeColor("#000000").stroke();
 
-    // Recuadro fiscal superior derecho
-    const boxX = pageWidth - margin - 190;
-    doc.rect(boxX, 40, 190, 75).lineWidth(1.5).strokeColor("#000000").stroke();
-    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(11).text("RUC: 20145480033", boxX, 50, { width: 190, align: "center" });
-    doc.text("FACTURA ELECTRONICA", boxX, 66, { width: 190, align: "center" });
-    doc.fontSize(13).text(datos.numeroComprobante, boxX, 86, { width: 190, align: "center" });
+    // Bloque 1: Encabezado Institucional (Izquierda)
+    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(11).text("MUNICIPALIDAD PROVINCIAL DE TRUJILLO", margin + 15, margin + 15, { width: 330 });
+    doc.font("Helvetica").fontSize(8.5).text("JR. ALMAGRO 525 URB. CENTRO HISTORICO", margin + 15, margin + 30);
+    doc.text("LA LIBERTAD - TRUJILLO - TRUJILLO", margin + 15, margin + 42);
 
-    // Línea gruesa divisoria
-    doc.moveTo(margin, 130).lineTo(pageWidth - margin, 130).lineWidth(2).strokeColor("#000000").stroke();
+    // Recuadro Fiscal Superior Derecho
+    const boxWidth = 200;
+    const boxHeight = 52;
+    const boxX = pageWidth - margin - boxWidth - 15;
+    const boxY = margin + 12;
 
-    // Datos del Cliente / Contribuyente
-    let y = 140;
-    doc.font("Helvetica-Bold").fontSize(10).text("Fecha: ", margin, y);
-    doc.font("Helvetica").text(datos.fechaFormateada, margin + 45, y);
+    doc.rect(boxX, boxY, boxWidth, boxHeight).lineWidth(1.2).strokeColor("#000000").stroke();
+    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(10.5).text("FACTURA ELECTRONICA", boxX, boxY + 8, { width: boxWidth, align: "center" });
+    doc.fontSize(10).text("RUC: 20175639391", boxX, boxY + 22, { width: boxWidth, align: "center" });
+    doc.fontSize(11).text(datos.numeroComprobante, boxX, boxY + 36, { width: boxWidth, align: "center" });
 
-    doc.font("Helvetica-Bold").text("Pago: ", margin + 280, y);
-    doc.font("Helvetica").text(datos.metodoPago, margin + 320, y);
+    // Línea divisoria 1
+    let y = margin + 72;
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(0.8).strokeColor("#000000").stroke();
 
-    y += 18;
-    doc.font("Helvetica-Bold").text("Razon social: ", margin, y);
-    doc.font("Helvetica").text(datos.razonSocial.toUpperCase(), margin + 80, y, { width: 420 });
-
-    y += 18;
-    doc.font("Helvetica-Bold").text("RUC: ", margin, y);
-    doc.font("Helvetica").text(datos.ruc, margin + 35, y);
-
-    y += 18;
-    doc.font("Helvetica-Bold").text("Direccion fiscal: ", margin, y);
-    doc.font("Helvetica").text(datos.domicilioFiscal.toUpperCase(), margin + 95, y, { width: 405 });
-
-    // Línea divisoria
-    y += 24;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(2).strokeColor("#000000").stroke();
-
-    // Encabezado de la tabla de detalles
+    // Bloque 2: Datos del Cliente / Contribuyente
     y += 10;
-    doc.rect(margin, y, contentWidth, 22).fill("#000000");
-    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(10).text("DETALLES DE LA FACTURA", margin + 10, y + 6);
+    const col1X = margin + 15;
+    const val1X = margin + 130;
+    const lineGap = 13;
+    const fechaVence = datos.fechaVencimiento || "17/08/2027";
 
-    // Columnas de la tabla
+    doc.font("Helvetica").fontSize(8.5);
+
+    // Fecha de Vencimiento
+    doc.text("Fecha de Vencimiento", col1X, y);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text(fechaVence, val1X, y);
+
+    // Fecha de Emisión
+    y += lineGap;
+    doc.font("Helvetica").text("Fecha de Emisión", col1X, y);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text(datos.fechaEmision, val1X, y);
+
+    // Señor(es)
+    y += lineGap;
+    doc.font("Helvetica").text("Señor(es)", col1X, y);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text(datos.razonSocial.toUpperCase(), val1X, y, { width: 380 });
+    const rsHeight = Math.max(12, doc.heightOfString(datos.razonSocial.toUpperCase(), { width: 380 }));
+
+    // RUC
+    y += rsHeight;
+    doc.font("Helvetica").text("RUC", col1X, y);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text(datos.ruc, val1X, y);
+
+    // Establecimiento del Emisor
+    y += lineGap;
+    doc.font("Helvetica").text("Establecimiento del", col1X, y);
+    doc.text("Emisor", col1X, y + 10);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text(datos.domicilioFiscal.toUpperCase(), val1X, y, { width: 380 });
+    const domHeight = Math.max(18, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);
+
+    // Tipo de Moneda
+    y += domHeight;
+    doc.font("Helvetica").text("Tipo de Moneda", col1X, y);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text("SOLES", val1X, y);
+
+    // Observación
+    y += lineGap;
+    doc.font("Helvetica").text("Observación", col1X, y);
+    doc.text(":", col1X + 105, y);
+    const obsText = `ORDEN DE SERVICIO N. ${datos.codigoTramite ?? "MPT-2026-000001"}${datos.metodoPago ? ` (${datos.metodoPago})` : ""}`;
+    doc.font("Helvetica-Bold").text(obsText, val1X, y, { width: 380 });
+
+    // Línea divisoria 2 (Tabla Header)
+    y += 18;
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(1).strokeColor("#000000").stroke();
+
+    // Bloque 3: Encabezado Tabla de Detalles
+    y += 4;
+    doc.font("Helvetica-Bold").fontSize(8.5);
+    doc.text("Cantidad", margin + 10, y, { width: 50, align: "right" });
+    doc.text("Unidad Medida", margin + 70, y, { width: 85, align: "left" });
+    doc.text("Código", margin + 160, y, { width: 70, align: "left" });
+    doc.text("Descripción", margin + 235, y, { width: 230, align: "left" });
+    doc.text("Valor Unitario", margin + 470, y, { width: 75, align: "right" });
+
+    y += 14;
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(1).strokeColor("#000000").stroke();
+
+    // Fila de Item
+    y += 6;
+    doc.font("Helvetica").fontSize(8.5);
+    doc.text("1.00", margin + 10, y, { width: 50, align: "right" });
+    doc.text("UNIDAD", margin + 70, y, { width: 85, align: "left" });
+    doc.text("SERV-MPT", margin + 160, y, { width: 70, align: "left" });
+    doc.text("POR DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO", margin + 235, y, { width: 230, align: "left" });
+    doc.text("152.54", margin + 470, y, { width: 75, align: "right" });
+
+    // Línea divisoria 3
     y += 28;
-    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(9.5);
-    doc.text("Cant.", margin, y, { width: 40, align: "center" });
-    doc.text("Unid.", margin + 45, y, { width: 45, align: "center" });
-    doc.text("Codigo", margin + 95, y, { width: 65, align: "center" });
-    doc.text("Descripcion", margin + 165, y, { width: 200, align: "left" });
-    doc.text("P. Unit.", margin + 370, y, { width: 60, align: "right" });
-    doc.text("Total", margin + 435, y, { width: 60, align: "right" });
+    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(1).strokeColor("#000000").stroke();
 
-    y += 16;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(0.8).strokeColor("#cbd5e1").stroke();
-
-    // Fila de item
+    // Bloque 4: Totales y Cuadros
     y += 10;
-    doc.font("Helvetica").fontSize(9.5);
-    doc.text("1", margin, y, { width: 40, align: "center" });
-    doc.text("NIU", margin + 45, y, { width: 45, align: "center" });
-    doc.text("SERV-001", margin + 95, y, { width: 65, align: "center" });
-    doc.text("Derecho de Trámite Licencia de Funcionamiento (Trujillo)", margin + 165, y, { width: 200, align: "left" });
-    doc.text("180.00", margin + 370, y, { width: 60, align: "right" });
-    doc.font("Helvetica-Bold").text("180.00", margin + 435, y, { width: 60, align: "right" });
+    const totalsLeftX = margin + 15;
+    const totalsRightBoxX = pageWidth - margin - 215;
+    const totalsRightBoxWidth = 200;
 
-    y += 25;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(0.8).strokeColor("#cbd5e1").stroke();
+    // Lado Izquierdo: Valor Venta Operaciones Gratuitas
+    const freeBoxY = y;
+    doc.rect(totalsLeftX + 130, freeBoxY, 150, 20).lineWidth(0.8).strokeColor("#000000").stroke();
+    doc.font("Helvetica").fontSize(8.5).text("Valor de Venta de Operaciones", totalsLeftX, freeBoxY + 3);
+    doc.text("Gratuitas :", totalsLeftX, freeBoxY + 12);
+    doc.font("Helvetica-Bold").text("S/ 0.00", totalsLeftX + 140, freeBoxY + 5);
 
-    // Resumen de Totales
-    y += 12;
-    doc.font("Helvetica").fontSize(10).text("Items: ", pageWidth - margin - 120, y);
-    doc.font("Helvetica-Bold").text("1", pageWidth - margin - 80, y);
+    // Lado Izquierdo: Total Escrito en Letras
+    const sonY = freeBoxY + 36;
+    doc.font("Helvetica-Bold").fontSize(8.5).text("SON: CIENTO OCHENTA CON 00/100 SOLES", totalsLeftX, sonY);
 
-    y += 18;
-    const totalBoxWidth = 220;
-    const totalBoxX = pageWidth - margin - totalBoxWidth;
-    doc.rect(totalBoxX, y, totalBoxWidth, 26).fill("#000000");
-    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(12).text("IMPORTE TOTAL:       S/ 180.00", totalBoxX + 10, y + 7, { width: totalBoxWidth - 20, align: "center" });
+    // Lado Derecho: Cuadro Grilla de Totales
+    let ry = y;
+    const rightRowHeight = 13.5;
+    const drawTotalRow = (label: string, value: string, isFinal: boolean = false) => {
+      doc.rect(totalsRightBoxX, ry, totalsRightBoxWidth, isFinal ? 20 : rightRowHeight).lineWidth(0.8).strokeColor("#000000").stroke();
+      doc.font(isFinal ? "Helvetica-Bold" : "Helvetica").fontSize(8.5).text(label, totalsRightBoxX + 8, ry + (isFinal ? 5 : 2));
+      doc.font(isFinal ? "Helvetica-Bold" : "Helvetica").text(value, totalsRightBoxX + 100, ry + (isFinal ? 5 : 2), { width: 90, align: "right" });
+      ry += isFinal ? 20 : rightRowHeight;
+    };
 
-    // Total en letras
-    y += 42;
-    doc.rect(margin, y, contentWidth, 24).lineWidth(1.2).strokeColor("#000000").stroke();
-    doc.fillColor("#000000").font("Helvetica-Bold").fontSize(10).text("SON: CIENTO OCHENTA CON 00/100 SOLES", margin + 10, y + 7);
+    drawTotalRow("Sub Total Ventas :", "S/ 152.54");
+    drawTotalRow("Anticipos :", "S/ 0.00");
+    drawTotalRow("Descuentos :", "S/ 0.00");
+    drawTotalRow("Valor Venta :", "S/ 152.54");
+    drawTotalRow("ISC :", "S/ 0.00");
+    drawTotalRow("IGV :", "S/ 27.46");
+    drawTotalRow("Otros Cargos :", "S/ 0.00");
+    drawTotalRow("Otros Tributos :", "S/ 0.00");
+    drawTotalRow("Importe Total :", "S/ 180.00", true);
 
-    // Pie fiscal
-    y += 35;
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).lineWidth(0.8).strokeColor("#cbd5e1").stroke();
-    y += 8;
-    doc.font("Helvetica").fontSize(8.5).fillColor("#475569").text(`Op. Gravada: S/ 152.54 | IGV (18%): S/ 27.46 | Hash: ${datos.hashSimulado}`, margin, y, { width: contentWidth, align: "right" });
+    // Bloque 5: Recuadro Nota SUNAT al pie
+    const footerBoxWidth = contentWidth - 30;
+    const footerBoxX = margin + 15;
+    const footerBoxY = doc.page.height - margin - 35;
+    const footerBoxHeight = 24;
+
+    doc.rect(footerBoxX, footerBoxY, footerBoxWidth, footerBoxHeight).lineWidth(0.8).strokeColor("#000000").stroke();
+    doc.font("Helvetica-Oblique").fontSize(8.5).fillColor("#000000").text(
+      "Esta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.",
+      footerBoxX + 5,
+      footerBoxY + 7,
+      { width: footerBoxWidth - 10, align: "center" }
+    );
 
     doc.end();
   });
 }
+

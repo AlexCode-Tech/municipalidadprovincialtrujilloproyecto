@@ -240,7 +240,9 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
       }
     }
     const fechaPago = pago ? new Date(pago.creadoEn) : new Date();
-    const fechaFormateada = fechaPago.toISOString().split("T")[0];
+    const fechaEmisionStr = `${String(fechaPago.getDate()).padStart(2, "0")}/${String(fechaPago.getMonth() + 1).padStart(2, "0")}/${fechaPago.getFullYear()}`;
+    const fechaVenceObj = new Date(fechaPago.getFullYear() + 1, fechaPago.getMonth(), fechaPago.getDate());
+    const fechaVencimientoStr = `${String(fechaVenceObj.getDate()).padStart(2, "0")}/${String(fechaVenceObj.getMonth() + 1).padStart(2, "0")}/${fechaVenceObj.getFullYear()}`;
 
     // Correlativo simulado
     const correlativo = tramite.codigo.replace(/\D/g, "").slice(-6);
@@ -249,108 +251,131 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
     // Hash aleatorio de 8 caracteres hexadecimales
     const hashSimulado = Math.random().toString(16).slice(2, 10).toUpperCase();
 
-    // Estructura HTML idéntica a la imagen de factura proporcionada
+    // Estructura HTML idéntica a la imagen de factura SUNAT proporcionada
     const htmlFactura = `
-      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 580px; margin: 20px auto; border: 1px solid #cbd5e1; padding: 25px; color: #000; background-color: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-radius: 8px;">
-        <!-- Encabezado -->
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 650px; margin: 15px auto; border: 1.5px solid #000; padding: 20px; color: #000; background-color: #fff;">
+        <!-- Bloque 1: Encabezado -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 12px;">
           <tr>
-            <td valign="top" style="text-align: left; line-height: 1.4;">
-              <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #000;">MUNICIPALIDAD PROVINCIAL DE TRUJILLO</h1>
-              <span style="font-size: 13px; color: #000; font-weight: normal;">
-                RUC: 20145480033<br>
-                Av. España Nro. 456<br>
-                Tel: 935082862
+            <td valign="top" style="text-align: left; line-height: 1.3;">
+              <h2 style="margin: 0; font-size: 15px; font-weight: bold; color: #000;">MUNICIPALIDAD PROVINCIAL DE TRUJILLO</h2>
+              <span style="font-size: 11px; color: #000;">
+                JR. ALMAGRO 525 URB. CENTRO HISTORICO<br>
+                LA LIBERTAD - TRUJILLO - TRUJILLO
               </span>
             </td>
             <td align="right" valign="top" width="220">
-              <div style="border: 1.5px solid #000; padding: 10px 15px; text-align: center; line-height: 1.5;">
-                <span style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 2px;">RUC: 20145480033</span>
-                <span style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 2px;">FACTURA ELECTRONICA</span>
-                <span style="font-size: 15px; font-weight: 900; display: block; color: #000;">${numeroComprobante}</span>
+              <div style="border: 1.5px solid #000; padding: 8px 12px; text-align: center; line-height: 1.4;">
+                <span style="font-size: 12px; font-weight: bold; display: block;">FACTURA ELECTRONICA</span>
+                <span style="font-size: 12px; font-weight: bold; display: block;">RUC: 20175639391</span>
+                <span style="font-size: 14px; font-weight: bold; display: block; color: #000;">${numeroComprobante}</span>
               </div>
             </td>
           </tr>
         </table>
         
-        <!-- Línea negra divisoria gruesa -->
-        <div style="border-top: 2px solid #000; margin-bottom: 12px;"></div>
+        <div style="border-top: 1px solid #000; margin-bottom: 10px;"></div>
 
-        <!-- Datos del Cliente -->
-        <table width="100%" border="0" cellspacing="0" cellpadding="4" style="font-size: 13px; line-height: 1.5; color: #000; margin-bottom: 12px;">
+        <!-- Bloque 2: Datos del Cliente -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="3" style="font-size: 11px; line-height: 1.4; color: #000; margin-bottom: 10px;">
           <tr>
-            <td width="55%"><strong>Fecha:</strong> ${fechaFormateada}</td>
-            <td><strong>Pago:</strong> ${metodoPago}</td>
+            <td width="160">Fecha de Vencimiento</td>
+            <td width="10">:</td>
+            <td><strong>${fechaVencimientoStr}</strong></td>
           </tr>
           <tr>
-            <td valign="top"><strong>Razon social:</strong> ${tramite.negocio.razonSocial.toUpperCase()}</td>
-            <td valign="top"><strong>RUC:</strong> ${tramite.negocio.ruc}</td>
+            <td>Fecha de Emisión</td>
+            <td>:</td>
+            <td><strong>${fechaEmisionStr}</strong></td>
           </tr>
           <tr>
-            <td colspan="2"><strong>Direccion fiscal:</strong> ${tramite.negocio.domicilioFiscal.toUpperCase()}</td>
+            <td valign="top">Señor(es)</td>
+            <td valign="top">:</td>
+            <td><strong>${tramite.negocio.razonSocial.toUpperCase()}</strong></td>
+          </tr>
+          <tr>
+            <td>RUC</td>
+            <td>:</td>
+            <td><strong>${tramite.negocio.ruc}</strong></td>
+          </tr>
+          <tr>
+            <td valign="top">Establecimiento del Emisor</td>
+            <td valign="top">:</td>
+            <td><strong>${tramite.negocio.domicilioFiscal.toUpperCase()}</strong></td>
+          </tr>
+          <tr>
+            <td>Tipo de Moneda</td>
+            <td>:</td>
+            <td><strong>SOLES</strong></td>
+          </tr>
+          <tr>
+            <td>Observación</td>
+            <td>:</td>
+            <td><strong>ORDEN DE SERVICIO N. ${tramite.codigo} (${metodoPago})</strong></td>
           </tr>
         </table>
 
-        <!-- Línea negra divisoria gruesa -->
-        <div style="border-top: 2px solid #000; margin-bottom: 15px;"></div>
+        <div style="border-top: 1px solid #000; margin-bottom: 8px;"></div>
 
-        <!-- Tabla Detalles -->
-        <div style="background-color: #000; color: #fff; padding: 6px 12px; font-size: 12px; font-weight: bold; text-align: left; letter-spacing: 0.5px;">
-          DETALLES DE LA FACTURA
-        </div>
-        <table width="100%" border="0" cellspacing="0" cellpadding="8" style="font-size: 12px; border-collapse: collapse; margin-top: 5px; color: #000;">
+        <!-- Bloque 3: Tabla de Detalles -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="5" style="font-size: 11px; border-collapse: collapse; margin-top: 4px; color: #000;">
           <thead>
-            <tr style="border-bottom: 1px solid #cbd5e1;">
-              <th align="center" style="font-weight: bold; width: 10%; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Cant.</th>
-              <th align="center" style="font-weight: bold; width: 12%; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Unid.</th>
-              <th align="center" style="font-weight: bold; width: 15%; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Codigo</th>
-              <th align="left" style="font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Descripcion</th>
-              <th align="right" style="font-weight: bold; width: 15%; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">P. Unit.</th>
-              <th align="right" style="font-weight: bold; width: 15%; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">Total</th>
+            <tr style="border-bottom: 1px solid #000; border-top: 1px solid #000;">
+              <th align="right" style="font-weight: bold; width: 10%;">Cantidad</th>
+              <th align="left" style="font-weight: bold; width: 15%;">Unidad Medida</th>
+              <th align="left" style="font-weight: bold; width: 15%;">Código</th>
+              <th align="left" style="font-weight: bold;">Descripción</th>
+              <th align="right" style="font-weight: bold; width: 18%;">Valor Unitario</th>
             </tr>
           </thead>
           <tbody>
-            <tr style="border-bottom: 1px solid #cbd5e1;">
-              <td align="center" style="padding: 10px 0;">1</td>
-              <td align="center" style="padding: 10px 0;">NIU</td>
-              <td align="center" style="padding: 10px 0; font-family: monospace;">SERV-001</td>
-              <td align="left" style="padding: 10px 0;">Derecho de Trámite Licencia de Funcionamiento (Trujillo)</td>
-              <td align="right" style="padding: 10px 0;">180.00</td>
-              <td align="right" style="font-weight: bold; padding: 10px 0;">180.00</td>
+            <tr>
+              <td align="right" valign="top">1.00</td>
+              <td align="left" valign="top">UNIDAD</td>
+              <td align="left" valign="top">SERV-MPT</td>
+              <td align="left" valign="top">POR DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO</td>
+              <td align="right" valign="top">152.54</td>
             </tr>
           </tbody>
         </table>
 
-        <!-- Resumen de Totales -->
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 15px;">
+        <div style="border-top: 1px solid #000; margin-top: 12px; margin-bottom: 12px;"></div>
+
+        <!-- Bloque 4: Totales -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
           <tr>
-            <td align="right" style="font-size: 13px; padding-bottom: 8px; color: #000;">
-              Items: <span style="font-weight: bold;">1</span>
-            </td>
-          </tr>
-          <tr>
-            <td align="right">
-              <div style="background-color: #000; color: #fff; display: inline-block; padding: 8px 20px; font-weight: 900; font-size: 15px; letter-spacing: 0.5px;">
-                IMPORTE TOTAL: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S/ 180.00
+            <td valign="top" style="font-size: 11px; line-height: 1.6;">
+              <div style="border: 1px solid #000; display: inline-block; padding: 6px 12px; margin-bottom: 10px;">
+                Valor de Venta de Operaciones Gratuitas : <strong>S/ 0.00</strong>
               </div>
+              <br>
+              <strong>SON: CIENTO OCHENTA CON 00/100 SOLES</strong>
+            </td>
+            <td align="right" valign="top" width="220">
+              <table width="100%" border="1" cellspacing="0" cellpadding="3" style="border-collapse: collapse; font-size: 10.5px; border-color: #000;">
+                <tr><td>Sub Total Ventas :</td><td align="right">S/ 152.54</td></tr>
+                <tr><td>Anticipos :</td><td align="right">S/ 0.00</td></tr>
+                <tr><td>Descuentos :</td><td align="right">S/ 0.00</td></tr>
+                <tr><td>Valor Venta :</td><td align="right">S/ 152.54</td></tr>
+                <tr><td>ISC :</td><td align="right">S/ 0.00</td></tr>
+                <tr><td>IGV :</td><td align="right">S/ 27.46</td></tr>
+                <tr><td>Otros Cargos :</td><td align="right">S/ 0.00</td></tr>
+                <tr><td>Otros Tributos :</td><td align="right">S/ 0.00</td></tr>
+                <tr style="font-weight: bold; background-color: #f8fafc;"><td>Importe Total :</td><td align="right">S/ 180.00</td></tr>
+              </table>
             </td>
           </tr>
         </table>
 
-        <!-- Total escrito en Letras -->
-        <div style="border: 1.5px solid #000; padding: 10px; font-size: 12px; font-weight: bold; text-align: left; margin-top: 20px; color: #000;">
-          SON: CIENTO OCHENTA CON 00/100 SOLES
-        </div>
-
-        <!-- Pie Fiscal -->
-        <div style="text-align: right; font-size: 11px; color: #000; margin-top: 15px; border-top: 1px solid #cbd5e1; padding-top: 8px;">
-          Op. Gravada: S/ 152.54 | IGV (18%): S/ 27.46 | Hash: ${hashSimulado}
+        <!-- Bloque 5: Pie de Página -->
+        <div style="border: 1px solid #000; margin-top: 15px; padding: 8px; text-align: center; font-size: 10px; font-style: italic;">
+          Esta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.
         </div>
       </div>
     `;
 
     // Texto plano alternativo
-    const textFactura = `MUNICIPALIDAD PROVINCIAL DE TRUJILLO\nRUC: 20145480033\n\nFACTURA ELECTRONICA: ${numeroComprobante}\nFecha: ${fechaFormateada}\nRazon social: ${tramite.negocio.razonSocial.toUpperCase()}\nRUC: ${tramite.negocio.ruc}\nDireccion fiscal: ${tramite.negocio.domicilioFiscal.toUpperCase()}\nPago: ${metodoPago}\n\nDETALLE:\n1 NIU - SERV-001 - Derecho de Trámite Licencia de Funcionamiento - P.Unit: 180.00 - Total: 180.00\n\nIMPORTE TOTAL: S/ 180.00\nSON: CIENTO OCHENTA CON 00/100 SOLES\nOp. Gravada: S/ 152.54 | IGV (18%): S/ 27.46 | Hash: ${hashSimulado}`;
+    const textFactura = `MUNICIPALIDAD PROVINCIAL DE TRUJILLO\nRUC: 20175639391\nFACTURA ELECTRONICA: ${numeroComprobante}\nFecha Emisión: ${fechaEmisionStr}\nFecha Vencimiento: ${fechaVencimientoStr}\nSeñor(es): ${tramite.negocio.razonSocial.toUpperCase()}\nRUC: ${tramite.negocio.ruc}\nEstablecimiento: ${tramite.negocio.domicilioFiscal.toUpperCase()}\nMoneda: SOLES\nObservación: ORDEN DE SERVICIO N. ${tramite.codigo}\n\nDETALLE:\n1.00 UNIDAD - SERV-MPT - DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO - Valor Unitario: 152.54\n\nSub Total Ventas: S/ 152.54\nIGV (18%): S/ 27.46\nIMPORTE TOTAL: S/ 180.00\nSON: CIENTO OCHENTA CON 00/100 SOLES\n\nEsta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.`;
 
     // Generar el Buffer del PDF de la factura
     const { generarFacturaPdf } = require("./factura-pdf");
@@ -358,11 +383,13 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
     try {
       pdfBuffer = await generarFacturaPdf({
         numeroComprobante,
-        fechaFormateada,
+        fechaEmision: fechaEmisionStr,
+        fechaVencimiento: fechaVencimientoStr,
         metodoPago,
         razonSocial: tramite.negocio.razonSocial,
         ruc: tramite.negocio.ruc,
         domicilioFiscal: tramite.negocio.domicilioFiscal,
+        codigoTramite: tramite.codigo,
         hashSimulado,
       });
     } catch (e) {
