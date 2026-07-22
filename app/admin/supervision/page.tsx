@@ -13,6 +13,9 @@ type Pago = {
   montoEfectivo: number;
   montoYape: number;
   montoTarjeta: number;
+  vueltoTotal?: number;
+  vueltoEfectivo?: number;
+  vueltoYape?: number;
   tipoComprobante: string;
   numeroFactura?: string | null;
   fechaPago: string;
@@ -176,8 +179,13 @@ export default function AdminSupervisionPage() {
                       <td className="px-4 py-3 text-xs font-medium text-slate-700">
                         {p.metodo === "MIXTO" ? (
                           <div className="space-y-0.5">
-                            <p className="flex items-center gap-1"><Coins size={11} className="text-amber-600" />Efectivo: S/ {Number(p.montoEfectivo).toFixed(2)}</p>
+                            <p className="flex items-center gap-1"><Coins size={11} className="text-amber-600" />Efectivo/Tarjeta: S/ {Number(p.montoEfectivo).toFixed(2)}</p>
                             <p className="flex items-center gap-1"><CreditCard size={11} className="text-sky-600" />Yape: S/ {Number(p.montoYape).toFixed(2)}</p>
+                            {Number(p.vueltoTotal || 0) > 0 && (
+                              <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded mt-1">
+                                💡 Vuelto: S/ {Number(p.vueltoTotal).toFixed(2)} (Efectivo: S/ {Number(p.vueltoEfectivo || 0).toFixed(2)} | Yape: S/ {Number(p.vueltoYape || 0).toFixed(2)})
+                              </p>
+                            )}
                           </div>
                         ) : p.metodo === "EFECTIVO" ? (
                           <p className="flex items-center gap-1"><Coins size={11} className="text-amber-600" />S/ {Number(p.monto).toFixed(2)}</p>

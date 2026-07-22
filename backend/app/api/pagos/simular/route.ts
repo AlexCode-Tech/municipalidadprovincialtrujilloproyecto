@@ -17,6 +17,9 @@ export async function POST(request: NextRequest) {
     const metodoInput: "TARJETA" | "YAPE" | "MIXTO" = body.metodo || "TARJETA";
     const montoTarjetaInput = parseFloat(body.montoTarjeta) || 0;
     const montoYapeInput = parseFloat(body.montoYape) || 0;
+    const vueltoTotalInput = parseFloat(body.vueltoTotal) || 0;
+    const vueltoEfectivoInput = parseFloat(body.vueltoEfectivo) || 0;
+    const vueltoYapeInput = parseFloat(body.vueltoYape) || 0;
 
     const prisma = getPrisma();
 
@@ -64,7 +67,11 @@ export async function POST(request: NextRequest) {
       if (metodoInput === "MIXTO") {
         montoEfectivo = montoTarjetaInput || 100;
         montoYape = montoYapeInput || 80;
-        detalle = `Pago simulado Mixto (Tarjeta: S/ ${montoEfectivo.toFixed(2)} | Yape: S/ ${montoYape.toFixed(2)})`;
+        if (vueltoTotalInput > 0) {
+          detalle = `Pago Mixto (Recibido: Tarjeta/Efectivo S/ ${montoEfectivo.toFixed(2)}, Yape S/ ${montoYape.toFixed(2)} | Vuelto: S/ ${vueltoTotalInput.toFixed(2)} [Efectivo S/ ${vueltoEfectivoInput.toFixed(2)}, Yape S/ ${vueltoYapeInput.toFixed(2)}])`;
+        } else {
+          detalle = `Pago simulado Mixto (Tarjeta: S/ ${montoEfectivo.toFixed(2)} | Yape: S/ ${montoYape.toFixed(2)})`;
+        }
       } else if (metodoInput === "YAPE") {
         montoYape = 180.00;
         montoEfectivo = 0;
@@ -83,6 +90,9 @@ export async function POST(request: NextRequest) {
           metodo: metodoInput,
           montoEfectivo,
           montoYape,
+          vueltoTotal: vueltoTotalInput,
+          vueltoEfectivo: vueltoEfectivoInput,
+          vueltoYape: vueltoYapeInput,
           estado: "APPROVED",
           detalleEstado: detalle,
           mercadoPagoId: `sim-${Date.now()}`

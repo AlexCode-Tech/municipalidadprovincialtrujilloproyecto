@@ -22,6 +22,11 @@ function PagoContent() {
   const [montoTarjetaInput, setMontoTarjetaInput] = useState("100.00");
   const [montoYapeInput, setMontoYapeInput] = useState("80.00");
 
+  // Estado para gestión de vuelto en Pago Mixto
+  const [vueltoModo, setVueltoModo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
+  const [vueltoEfectivoCustom, setVueltoEfectivoCustom] = useState("0.00");
+  const [vueltoYapeCustom, setVueltoYapeCustom] = useState("0.00");
+
   const handleDecimalInput = (val: string): string => {
     if (!val) return "";
     const sanitized = val.replace(",", ".");
@@ -31,6 +36,12 @@ function PagoContent() {
     }
     return sanitized;
   };
+
+  // Cálculos de vuelto en tiempo real
+  const montoTarjetaVal = parseFloat(montoTarjetaInput) || 0;
+  const montoYapeVal = parseFloat(montoYapeInput) || 0;
+  const totalEntregado = montoTarjetaVal + montoYapeVal;
+  const vueltoCalculadoTotal = Math.max(0, Math.round((totalEntregado - 180.00) * 100) / 100);
 
   useEffect(() => {
     if (!tramiteId) return;
@@ -79,18 +90,40 @@ function PagoContent() {
 
     let montoTarjeta = 180;
     let montoYape = 0;
+    let vueltoTotal = 0;
+    let vueltoEfectivo = 0;
+    let vueltoYape = 0;
 
     if (metodoSimulacion === "YAPE") {
       montoTarjeta = 0;
       montoYape = 180;
     } else if (metodoSimulacion === "MIXTO") {
-      montoTarjeta = parseFloat(montoTarjetaInput) || 0;
-      montoYape = parseFloat(montoYapeInput) || 0;
+      montoTarjeta = montoTarjetaVal;
+      montoYape = montoYapeVal;
 
-      if (Math.abs((montoTarjeta + montoYape) - 180) > 0.01) {
-        setError("En pago mixto, la suma de Tarjeta y Yape debe ser exactamente S/ 180.00.");
+      if (totalEntregado < 179.99) {
+        setError(`El monto total ingresado (S/ ${totalEntregado.toFixed(2)}) es menor a la tasa oficial de S/ 180.00.`);
         setSimulando(false);
         return;
+      }
+
+      vueltoTotal = vueltoCalculadoTotal;
+      if (vueltoTotal > 0) {
+        if (vueltoModo === "EFECTIVO") {
+          vueltoEfectivo = vueltoTotal;
+          vueltoYape = 0;
+        } else if (vueltoModo === "YAPE") {
+          vueltoYape = vueltoTotal;
+          vueltoEfectivo = 0;
+        } else {
+          vueltoEfectivo = parseFloat(vueltoEfectivoCustom) || 0;
+          vueltoYape = parseFloat(vueltoYapeCustom) || 0;
+          if (Math.abs((vueltoEfectivo + vueltoYape) - vueltoTotal) > 0.01) {
+            setError(`En vuelto mixto, la suma de Efectivo y Yape debe ser exactamente igual al vuelto total de S/ ${vueltoTotal.toFixed(2)}.`);
+            setSimulando(false);
+            return;
+          }
+        }
       }
     }
 
@@ -102,7 +135,10 @@ function PagoContent() {
           tramiteId,
           metodo: metodoSimulacion,
           montoTarjeta,
-          montoYape
+          montoYape,
+          vueltoTotal,
+          vueltoEfectivo,
+          vueltoYape
         }),
       });
 
@@ -233,10 +269,10 @@ function PagoContent() {
         )}
       </section>
 
-      {/* MODAL PARA SELECCIONAR MÉTODO DE PAGO SIMULADO */}
+      {/* MODAL PARA SELECCIONAR MÉTODO DE PAGO SIMULADO Y CALCULAR VUELTO */}
       {showModalSimular && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-6">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -244,7 +280,7 @@ function PagoContent() {
                   Selecciona Método de Pago Simulado
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Elige la modalidad para emitir el comprobante y factura electrónica.
+                  Elige la modalidad para emitir el comprobante y calcular vuelto.
                 </p>
               </div>
               <button
@@ -280,7 +316,7 @@ function PagoContent() {
                   </div>
                   <div>
                     <p className="font-bold text-slate-900 text-sm">Tarjeta de Débito / Crédito</p>
-                    <p className="text-xs text-slate-500">Pago completo S/ 180.00 con tarjeta bancaria</p>
+                    <p className="text-xs text-slate-500">Pago exacto S/ 180.00 con tarjeta bancaria</p>
                   </div>
                 </div>
                 {metodoSimulacion === "TARJETA" && <Check className="text-emerald-600" size={20} />}
@@ -302,13 +338,13 @@ function PagoContent() {
                   </div>
                   <div>
                     <p className="font-bold text-slate-900 text-sm">Yape / BCP QR</p>
-                    <p className="text-xs text-slate-500">Pago completo S/ 180.00 por transferencia móvil Yape</p>
+                    <p className="text-xs text-slate-500">Pago exacto S/ 180.00 por transferencia móvil Yape</p>
                   </div>
                 </div>
                 {metodoSimulacion === "YAPE" && <Check className="text-emerald-600" size={20} />}
               </button>
 
-              {/* Opción 3: Pago Mixto */}
+              {/* Opción 3: Pago Mixto con Vuelto */}
               <button
                 type="button"
                 onClick={() => setMetodoSimulacion("MIXTO")}
@@ -323,35 +359,31 @@ function PagoContent() {
                     <Split size={20} />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900 text-sm">Pago Mixto (Tarjeta + Yape)</p>
-                    <p className="text-xs text-slate-500">Divide el monto total de S/ 180.00 entre ambos métodos</p>
+                    <p className="font-bold text-slate-900 text-sm">Pago Mixto con Vuelto (Tarjeta + Yape)</p>
+                    <p className="text-xs text-slate-500">Permite montos mayores para calcular el vuelto en caja o Yape</p>
                   </div>
                 </div>
                 {metodoSimulacion === "MIXTO" && <Check className="text-emerald-600" size={20} />}
               </button>
             </div>
 
-            {/* Inputs para Pago Mixto */}
+            {/* Inputs para Pago Mixto y Cálculo de Vuelto */}
             {metodoSimulacion === "MIXTO" && (
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3 animate-in fade-in">
-                <p className="text-xs font-bold text-indigo-900">Distribución de Monto Mixto (Total: S/ 180.00):</p>
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-4 animate-in fade-in">
+                <div>
+                  <p className="text-xs font-bold text-indigo-900">Ingreso de Montos Recibidos:</p>
+                  <p className="text-[11px] text-slate-500">Tasa del trámite a cubrir: <strong>S/ 180.00</strong></p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta (S/)</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta / Efectivo (S/)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      max="180"
                       value={montoTarjetaInput}
-                      onChange={(e) => {
-                        const val = handleDecimalInput(e.target.value);
-                        setMontoTarjetaInput(val);
-                        const num = parseFloat(val) || 0;
-                        if (num <= 180) {
-                          setMontoYapeInput((180 - num).toFixed(2));
-                        }
-                      }}
+                      onChange={(e) => setMontoTarjetaInput(handleDecimalInput(e.target.value))}
                       className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
                     />
                   </div>
@@ -361,25 +393,125 @@ function PagoContent() {
                       type="number"
                       step="0.01"
                       min="0"
-                      max="180"
                       value={montoYapeInput}
-                      onChange={(e) => {
-                        const val = handleDecimalInput(e.target.value);
-                        setMontoYapeInput(val);
-                        const num = parseFloat(val) || 0;
-                        if (num <= 180) {
-                          setMontoTarjetaInput((180 - num).toFixed(2));
-                        }
-                      }}
+                      onChange={(e) => setMontoYapeInput(handleDecimalInput(e.target.value))}
                       className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
                     />
                   </div>
                 </div>
+
+                {/* Resumen en tiempo real */}
+                <div className="flex items-center justify-between border-t border-indigo-100 pt-3 text-xs">
+                  <span className="text-slate-600 font-medium">Total Recibido:</span>
+                  <span className="font-bold text-slate-900">S/ {totalEntregado.toFixed(2)}</span>
+                </div>
+
+                {totalEntregado < 179.99 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-800 font-semibold flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0 text-amber-600" />
+                    El total entregado (S/ {totalEntregado.toFixed(2)}) debe ser al menos S/ 180.00.
+                  </div>
+                )}
+
+                {/* Si hay vuelto a entregar */}
+                {vueltoCalculadoTotal > 0 && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+                      <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                        <Check size={16} className="text-emerald-600" />
+                        Vuelto Total a Entregar:
+                      </span>
+                      <span className="text-base font-black text-emerald-700">
+                        S/ {vueltoCalculadoTotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] font-bold text-emerald-900">Modalidad de Entrega del Vuelto:</p>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setVueltoModo("EFECTIVO")}
+                        className={`rounded-xl border p-2 font-bold transition ${
+                          vueltoModo === "EFECTIVO"
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        💵 Efectivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVueltoModo("YAPE")}
+                        className={`rounded-xl border p-2 font-bold transition ${
+                          vueltoModo === "YAPE"
+                            ? "border-purple-600 bg-purple-600 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        📱 Yape
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVueltoModo("MIXTO");
+                          setVueltoEfectivoCustom((vueltoCalculadoTotal / 2).toFixed(2));
+                          setVueltoYapeCustom((vueltoCalculadoTotal / 2).toFixed(2));
+                        }}
+                        className={`rounded-xl border p-2 font-bold transition ${
+                          vueltoModo === "MIXTO"
+                            ? "border-indigo-600 bg-indigo-600 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        🔀 Mixto
+                      </button>
+                    </div>
+
+                    {vueltoModo === "MIXTO" && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Vuelto Efectivo (S/)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={vueltoEfectivoCustom}
+                            onChange={(e) => {
+                              const val = handleDecimalInput(e.target.value);
+                              setVueltoEfectivoCustom(val);
+                              const num = parseFloat(val) || 0;
+                              if (num <= vueltoCalculadoTotal) {
+                                setVueltoYapeCustom((vueltoCalculadoTotal - num).toFixed(2));
+                              }
+                            }}
+                            className="h-8 w-full rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-900 bg-white outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Vuelto Yape (S/)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={vueltoYapeCustom}
+                            onChange={(e) => {
+                              const val = handleDecimalInput(e.target.value);
+                              setVueltoYapeCustom(val);
+                              const num = parseFloat(val) || 0;
+                              if (num <= vueltoCalculadoTotal) {
+                                setVueltoEfectivoCustom((vueltoCalculadoTotal - num).toFixed(2));
+                              }
+                            }}
+                            className="h-8 w-full rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-900 bg-white outline-none focus:border-emerald-600"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Acciones del Modal */}
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setShowModalSimular(false)}
@@ -390,7 +522,7 @@ function PagoContent() {
               <button
                 type="button"
                 onClick={handleEjecutarSimulacion}
-                disabled={simulando}
+                disabled={simulando || (metodoSimulacion === "MIXTO" && totalEntregado < 179.99)}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
               >
                 {simulando ? (

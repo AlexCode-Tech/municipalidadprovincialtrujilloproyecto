@@ -193,5 +193,8 @@ export function scaleUpPago(p: any) {
     ...p,
     monto: isYape ? 180.00 : (hasYape ? Number(p.montoEfectivo) + (180.00 - Number(p.montoEfectivo)) : Number(p.monto)),
     montoYape: isYape ? 180.00 : (hasYape ? 180.00 - Number(p.montoEfectivo) : Number(p.montoYape)),
+    vueltoTotal: Number(p.vueltoTotal || 0),
+    vueltoEfectivo: Number(p.vueltoEfectivo || 0),
+    vueltoYape: Number(p.vueltoYape || 0),
   };
 }

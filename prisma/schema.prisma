@@ -136,6 +136,11 @@ model Pago {
   montoEfectivo     Decimal     @default(0) @db.Decimal(10, 2)
   montoYape         Decimal     @default(0) @db.Decimal(10, 2)
   montoTarjeta      Decimal     @default(0) @db.Decimal(10, 2)
+
+  // Vuelto entregado
+  vueltoTotal       Decimal     @default(0) @db.Decimal(10, 2)
+  vueltoEfectivo    Decimal     @default(0) @db.Decimal(10, 2)
+  vueltoYape        Decimal     @default(0) @db.Decimal(10, 2)
   tipoComprobante   String      @default("FACTURA") // FACTURA, BOLETA
   numeroFactura     String?
   fechaPago         DateTime    @default(now())

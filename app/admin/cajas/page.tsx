@@ -1032,7 +1032,12 @@ export default function AdminCajasPage() {
                                     <p className="text-[10px] text-slate-400">RUC: {p.tramite.negocio.ruc}</p>
                                   </td>
                                   <td className="px-3 py-2 font-semibold text-slate-700">
-                                    {p.metodo}
+                                    <p>{p.metodo}</p>
+                                    {Number((p as any).vueltoTotal || 0) > 0 && (
+                                      <p className="text-[10px] font-bold text-emerald-700 mt-0.5">
+                                        💡 Vuelto: S/ {Number((p as any).vueltoTotal).toFixed(2)} (Efectivo: S/ {Number((p as any).vueltoEfectivo || 0).toFixed(2)} | Yape: S/ {Number((p as any).vueltoYape || 0).toFixed(2)})
+                                      </p>
+                                    )}
                                   </td>
                                   <td className="px-3 py-2 text-right font-bold text-slate-900">
                                     S/ {Number(p.monto).toFixed(2)}
