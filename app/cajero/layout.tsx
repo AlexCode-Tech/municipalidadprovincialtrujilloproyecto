@@ -17,5 +17,14 @@ export default async function CajeroLayout({ children }: { children: React.React
     }
   }
 
-  return <DashboardShell role="CAJERO" name={session.user.name ?? "Cajero"}>{children}</DashboardShell>;
+  return (
+    <DashboardShell
+      role="CAJERO"
+      name={session.user.name ?? "Cajero"}
+      userEmail={session.user.email ?? undefined}
+      userId={session.user.id ?? undefined}
+    >
+      {children}
+    </DashboardShell>
+  );
 }

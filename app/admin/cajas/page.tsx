@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useTransition } from "react";
 import { PageHeading } from "@/components/layout/DashboardShell";
@@ -31,7 +31,7 @@ type CajaSession = {
   montoCierreYape?: number | null;
   diferenciaArqueo?: number | null;
   justificacionArqueo?: string | null;
-  estado: "ABIERTA" | "SOLICITADO_CIERRE" | "CERRADA";
+  estado: "ABIERTA" | "SOLICITADO_CIERRE" | "CERRADA" | "SOLICITADO_APERTURA";
   fechaApertura: string;
   fechaCierre?: string | null;
   cajero: {
@@ -397,9 +397,49 @@ export default function AdminCajasPage() {
         </div>
       )}
 
+      {/* NOTIFICACIONES EN TIEMPO REAL DE SOLICITUDES DE APERTURA DE CAJA */}
+      {sessions.filter(s => (s.estado as string) === "SOLICITADO_APERTURA").map(req => (
+        <div key={req.id} className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-sky-300 bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 p-5 shadow-md animate-in fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-md">
+              <Store size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-blue-700 animate-pulse">
+                  🔔 Solicitud de Apertura Pendiente
+                </span>
+                <span className="text-xs text-slate-500 font-mono">
+                  {new Date(req.fechaApertura).toLocaleTimeString("es-PE")}
+                </span>
+              </div>
+              <h4 className="mt-1 text-base font-bold text-slate-900">
+                El cajero(a) <strong className="text-blue-900">{req.cajero.nombre}</strong> ({req.cajero.email}) solicita apertura de caja
+              </h4>
+              <p className="text-xs text-slate-600">
+                Asigna el fondo de apertura inicial para activar su turno de cobro de inmediato.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setOpenCajaCajeroId(req.cajero.id);
+              setOpenCajaMontoApertura("100");
+              setOpenCajaError("");
+              setShowOpenCajaModal(true);
+            }}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-xs font-bold text-white shadow-md transition active:scale-[0.98]"
+          >
+            <Plus size={16} />
+            Asignar Fondo y Abrir Caja
+          </button>
+        </div>
+      ))}
+
       {/* PANEL DE ESTADO EN TIEMPO REAL POR CAJERO */}
       {(() => {
-        // Agrupar por cajero: mostrar la sesión más reciente de cada cajero que está ABIERTA o SOLICITADO_CIERRE
+        // Agrupar por cajero: mostrar la sesión más reciente de cada cajero que está ABIERTA, SOLICITADO_CIERRE o SOLICITADO_APERTURA
         const cajeroMap = new Map<string, typeof sessions[0]>();
         sessions.forEach(s => {
           const key = s.cajero.email;
@@ -407,7 +447,7 @@ export default function AdminCajasPage() {
             cajeroMap.set(key, s);
           } else {
             const prev = cajeroMap.get(key)!;
-            if (s.estado === "ABIERTA" || (s.estado === "SOLICITADO_CIERRE" && prev.estado === "CERRADA")) {
+            if (s.estado === "ABIERTA" || s.estado === "SOLICITADO_APERTURA" || (s.estado === "SOLICITADO_CIERRE" && prev.estado === "CERRADA")) {
               cajeroMap.set(key, s);
             }
           }
@@ -444,7 +484,8 @@ export default function AdminCajasPage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {allCajeros.map(s => {
                 const isAbierta = s.estado === "ABIERTA";
-                const isPending = s.estado === "SOLICITADO_CIERRE";
+                const isPendingCierre = s.estado === "SOLICITADO_CIERRE";
+                const isPendingApertura = (s.estado as string) === "SOLICITADO_APERTURA";
                 const isCerrada = s.estado === "CERRADA";
 
                 // Calcular saldo actual en caja
@@ -473,8 +514,10 @@ export default function AdminCajasPage() {
                     className={`rounded-2xl border p-4 space-y-3 transition ${
                       isAbierta
                         ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-white shadow-sm"
-                        : isPending
+                        : isPendingCierre
                         ? "border-amber-300 bg-gradient-to-br from-amber-50 to-white shadow-sm"
+                        : isPendingApertura
+                        ? "border-sky-300 bg-gradient-to-br from-sky-50 to-white shadow-sm"
                         : "border-slate-200 bg-slate-50"
                     }`}
                   >
@@ -487,17 +530,35 @@ export default function AdminCajasPage() {
                       <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${
                         isAbierta
                           ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
-                          : isPending
+                          : isPendingCierre
                           ? "bg-amber-100 text-amber-700 border border-amber-300 animate-pulse"
+                          : isPendingApertura
+                          ? "bg-sky-100 text-sky-700 border border-sky-300 animate-pulse"
                           : "bg-slate-100 text-slate-500 border border-slate-200"
                       }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${isAbierta ? "bg-emerald-500 animate-pulse" : isPending ? "bg-amber-500" : "bg-slate-400"}`}></span>
-                        {isAbierta ? "Caja Abierta" : isPending ? "Pend. Cierre" : "Cerrada"}
+                        <span className={`h-1.5 w-1.5 rounded-full ${isAbierta ? "bg-emerald-500 animate-pulse" : isPendingCierre ? "bg-amber-500" : isPendingApertura ? "bg-sky-500 animate-ping" : "bg-slate-400"}`}></span>
+                        {isAbierta ? "Caja Abierta" : isPendingCierre ? "Pend. Cierre" : isPendingApertura ? "Sol. Apertura" : "Cerrada"}
                       </span>
                     </div>
 
+                    {/* Botón de acción rápido si hay solicitud de apertura */}
+                    {isPendingApertura && (
+                      <button
+                        onClick={() => {
+                          setOpenCajaCajeroId(s.cajero.id);
+                          setOpenCajaMontoApertura("100");
+                          setOpenCajaError("");
+                          setShowOpenCajaModal(true);
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3 py-2 text-xs font-bold text-white shadow-sm transition active:scale-[0.98]"
+                      >
+                        <Plus size={14} />
+                        Asignar Fondo de Apertura
+                      </button>
+                    )}
+
                     {/* Saldo total en caja */}
-                    <div className={`rounded-xl p-3 text-center ${isAbierta ? "bg-emerald-600" : isPending ? "bg-amber-500" : "bg-slate-400"}`}>
+                    <div className={`rounded-xl p-3 text-center ${isAbierta ? "bg-emerald-600" : isPendingCierre ? "bg-amber-500" : "bg-slate-400"}`}>
                       <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">
                         {isCerrada ? "Cierre Declarado" : "Saldo Actual en Caja"}
                       </p>
@@ -532,7 +593,7 @@ export default function AdminCajasPage() {
                           {(s.pagos || []).filter((p: any) => p.estado === "APPROVED").length} cobro(s)
                         </span>
                       )}
-                      {isPending && (
+                      {isPendingCierre && (
                         <button
                           onClick={() => handleAprobarCierre(s.id)}
                           disabled={pending}

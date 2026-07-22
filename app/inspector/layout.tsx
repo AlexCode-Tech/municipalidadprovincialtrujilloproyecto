@@ -17,5 +17,14 @@ export default async function InspectorLayout({ children }: { children: React.Re
     }
   }
 
-  return <DashboardShell role="INSPECTOR" name={session.user.name ?? "Inspector"}>{children}</DashboardShell>;
+  return (
+    <DashboardShell
+      role="INSPECTOR"
+      name={session.user.name ?? "Inspector"}
+      userEmail={session.user.email ?? undefined}
+      userId={session.user.id ?? undefined}
+    >
+      {children}
+    </DashboardShell>
+  );
 }

@@ -7,6 +7,14 @@ import { hash } from "bcryptjs";
 import { scaleUpPago } from "@/lib/registrar-pago";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
+const noCacheHeaders = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
+  "Pragma": "no-cache",
+  "Expires": "0"
+};
 
 async function resolveUsuario(prisma: any, user: { id: string; email?: string | null; name?: string | null; rol: any }) {
   if (!user.email) return null;
@@ -43,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   if (user.rol === "CAJERO") {
     const dbUser = await resolveUsuario(prisma, user);
-    if (!dbUser) return NextResponse.json({ session: null });
+    if (!dbUser) return NextResponse.json({ session: null }, { headers: noCacheHeaders });
 
     // Buscar la última sesión de caja de este cajero
     const session = await prisma.cajaSession.findFirst({
@@ -61,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!session) {
-      return NextResponse.json({ session: null });
+      return NextResponse.json({ session: null }, { headers: noCacheHeaders });
     }
 
     // Si la sesión está ABIERTA o SOLICITADO_CIERRE, calcular los totales esperados de pagos
@@ -94,7 +102,7 @@ export async function GET(request: NextRequest) {
         total: Number(session.montoApertura) + expectedEfectivo + expectedYape,
         totalCobros
       }
-    });
+    }, { headers: noCacheHeaders });
   } else {
     // Si es ADMIN, listar todas las sesiones con el desglose completo de comprobantes y métricas de tesorería
     const sessions = await prisma.cajaSession.findMany({
@@ -212,11 +220,7 @@ export async function GET(request: NextRequest) {
       depositos,
       cajerosList
     }, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0"
-      }
+      headers: noCacheHeaders
     });
   }
 }
@@ -234,22 +238,80 @@ export async function POST(request: NextRequest) {
     if (user.rol === "CAJERO") {
       const dbUser = await resolveUsuario(prisma, user);
       if (!dbUser) {
-        return NextResponse.json({ error: "Usuario no encontrado en la base de datos" }, { status: 400 });
+        return NextResponse.json({ error: "Usuario no encontrado en la base de datos" }, { status: 400, headers: noCacheHeaders });
       }
 
       const { action } = body;
 
+      if (action === "REQUEST_OPEN") {
+        // Verificar si el cajero ya tiene una caja abierta, solicitado cierre o solicitado apertura
+        const sesionExistente = await prisma.cajaSession.findFirst({
+          where: {
+            cajeroId: dbUser.id,
+            estado: { in: ["ABIERTA", "SOLICITADO_CIERRE", "SOLICITADO_APERTURA"] }
+          }
+        });
+
+        if (sesionExistente) {
+          if (sesionExistente.estado === "SOLICITADO_APERTURA") {
+            return NextResponse.json({ success: true, session: sesionExistente, message: "Solicitud de apertura en proceso." }, { headers: noCacheHeaders });
+          }
+          return NextResponse.json({ error: "Ya posees un turno de caja activo o en proceso de cierre." }, { status: 400, headers: noCacheHeaders });
+        }
+
+        // Crear una nueva sesión en estado SOLICITADO_APERTURA
+        const nuevaSesion = await prisma.cajaSession.create({
+          data: {
+            cajeroId: dbUser.id,
+            montoApertura: 0,
+            estado: "SOLICITADO_APERTURA",
+            fechaApertura: hoy
+          }
+        });
+
+        // Notificar por correo al Administrador MPT
+        try {
+          const mensajeHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+              <h2 style="color: #1e3a8a; margin-top: 0;">🔔 Solicitud de Apertura de Caja</h2>
+              <p>El cajero(a) <strong>${dbUser.nombre}</strong> (${dbUser.email}) ha solicitado iniciar su turno de caja.</p>
+              
+              <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <p style="margin: 4px 0;"><strong>Cajero:</strong> ${dbUser.nombre}</p>
+                <p style="margin: 4px 0;"><strong>Correo:</strong> ${dbUser.email}</p>
+                <p style="margin: 4px 0;"><strong>Fecha de Solicitud:</strong> ${hoy.toLocaleString("es-PE")}</p>
+              </div>
+
+              <p style="font-size: 13px; color: #475569;">
+                Ingrese al panel de Administración en <strong>/admin/cajas</strong> para asignarle su fondo de apertura e iniciar la sesión de caja.
+              </p>
+            </div>
+          `;
+
+          void enviarCorreo({
+            to: "alexpsm2005@gmail.com",
+            subject: `🔔 SOLICITUD DE APERTURA: El cajero ${dbUser.nombre} solicita abrir caja`,
+            text: `El cajero ${dbUser.nombre} solicita apertura de caja. Ingrese a /admin/cajas para asignarle su fondo inicial.`,
+            html: mensajeHtml
+          });
+        } catch (mailErr) {
+          console.warn("No se pudo enviar correo de solicitud de apertura:", mailErr);
+        }
+
+        return NextResponse.json({ success: true, session: nuevaSesion }, { headers: noCacheHeaders });
+      }
+
       if (action === "OPEN") {
         return NextResponse.json(
           { error: "El cajero no puede auto-aperturar su caja. El fondo de apertura es asignado exclusivamente por el Administrador MPT." },
-          { status: 403 }
+          { status: 403, headers: noCacheHeaders }
         );
       }
 
       if (action === "CLOSE") {
         const { sessionId, montoCierreEfectivo, montoCierreYape, justificacionArqueo } = body;
         if (!sessionId || montoCierreEfectivo === undefined || montoCierreYape === undefined) {
-          return NextResponse.json({ error: "Parámetros de cierre requeridos" }, { status: 400 });
+          return NextResponse.json({ error: "Parámetros de cierre requeridos" }, { status: 400, headers: noCacheHeaders });
         }
 
         const session = await prisma.cajaSession.findUnique({
@@ -258,7 +320,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!session || session.cajeroId !== dbUser.id || session.estado !== "ABIERTA") {
-          return NextResponse.json({ error: "Sesión no encontrada o no está abierta" }, { status: 400 });
+          return NextResponse.json({ error: "Sesión no encontrada o no está abierta" }, { status: 400, headers: noCacheHeaders });
         }
 
         // Calcular montos esperados
@@ -281,15 +343,13 @@ export async function POST(request: NextRequest) {
 
         const expectedYapeTotal_Frontend = expectedYapeTotal * 60;
 
-        // Descuadre = físico - esperado (en términos del frontend para validación y alertas)
         const diferencia_Frontend = (physicalEfectivo + physicalYape_Frontend) - (expectedEfectivoTotal + expectedYapeTotal_Frontend);
         const diferencia_DB = diferencia_Frontend / 60;
 
-        // Exigir justificación si hay descuadre positivo o negativo
         if (diferencia_Frontend !== 0 && (!justificacionArqueo || !justificacionArqueo.trim())) {
           return NextResponse.json(
             { error: `Se ha detectado un descuadre en caja de S/ ${diferencia_Frontend.toFixed(2)}. Debes ingresar una justificación obligatoria para la administración.` },
-            { status: 400 }
+            { status: 400, headers: noCacheHeaders }
           );
         }
 
@@ -305,7 +365,6 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        // Enviar notificación por correo al Administrador Único
         try {
           const mensajeHtml = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
@@ -342,41 +401,45 @@ export async function POST(request: NextRequest) {
           console.warn("No se pudo enviar la alerta de correo al administrador:", mailError);
         }
 
-        return NextResponse.json({ success: true, session: updated });
+        return NextResponse.json({ success: true, session: updated }, { headers: noCacheHeaders });
       }
 
-      return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
+      return NextResponse.json({ error: "Acción no válida" }, { status: 400, headers: noCacheHeaders });
     } else {
       // Si es ADMIN, aprueba el cierre de caja, ingresa efectivo directo a MPT, o abre caja para cajero
       const { action, sessionId, monto, concepto, referencia, cajeroId, montoApertura } = body;
 
       if (action === "OPEN_FOR_CAJERO") {
         if (!cajeroId || !cajeroId.trim()) {
-          return NextResponse.json({ error: "ID de cajero requerido" }, { status: 400 });
+          return NextResponse.json({ error: "ID de cajero requerido" }, { status: 400, headers: noCacheHeaders });
         }
         if (montoApertura === undefined || isNaN(Number(montoApertura)) || Number(montoApertura) < 0) {
-          return NextResponse.json({ error: "Monto de apertura inválido" }, { status: 400 });
+          return NextResponse.json({ error: "Monto de apertura inválido" }, { status: 400, headers: noCacheHeaders });
         }
 
         const cajero = await prisma.usuario.findFirst({
           where: { id: cajeroId, rol: "CAJERO", estado: "ACTIVO" }
         });
         if (!cajero) {
-          return NextResponse.json({ error: "Cajero no encontrado o inactivo" }, { status: 404 });
+          return NextResponse.json({ error: "Cajero no encontrado o inactivo" }, { status: 404, headers: noCacheHeaders });
         }
 
-        // Verificar si ya tiene sesión abierta
+        // Verificar si ya tiene sesión activa en ABIERTA o SOLICITADO_CIERRE
         const sesionActiva = await prisma.cajaSession.findFirst({
           where: { cajeroId, estado: { in: ["ABIERTA", "SOLICITADO_CIERRE"] } }
         });
         if (sesionActiva) {
-          return NextResponse.json({ error: `${cajero.nombre} ya tiene una caja activa o en proceso de cierre` }, { status: 400 });
+          return NextResponse.json({ error: `${cajero.nombre} ya tiene una caja activa o en proceso de cierre` }, { status: 400, headers: noCacheHeaders });
         }
+
+        // Buscar si existe una solicitud de apertura pendiente (SOLICITADO_APERTURA)
+        const sesionSolicitada = await prisma.cajaSession.findFirst({
+          where: { cajeroId, estado: "SOLICITADO_APERTURA" }
+        });
 
         // ── VALIDACIÓN: el fondo no puede superar la bóveda de efectivo de la MPT ──
         const montoSolicitado = Number(montoApertura);
 
-        // Calcular saldo actual de tesorería MPT (igual que en el GET)
         const allSessions = await prisma.cajaSession.findMany({
           select: { montoApertura: true, montoCierreEfectivo: true, estado: true }
         });
@@ -398,25 +461,38 @@ export async function POST(request: NextRequest) {
         if (montoSolicitado > efectivoBoveda) {
           return NextResponse.json({
             error: `El fondo de apertura (S/ ${montoSolicitado.toFixed(2)}) supera el saldo disponible en la Bóveda de Efectivo de la MPT (S/ ${efectivoBoveda.toFixed(2)}). Reduzca el monto o ingrese más efectivo a la Tesorería MPT.`
-          }, { status: 400 });
+          }, { status: 400, headers: noCacheHeaders });
         }
-        // ─────────────────────────────────────────────────────────────────────────
 
-        const nuevaSesion = await prisma.cajaSession.create({
-          data: {
-            cajeroId,
-            montoApertura: montoSolicitado,
-            estado: "ABIERTA",
-            fechaApertura: hoy
-          }
-        });
+        let sesionAperturada = null;
+        if (sesionSolicitada) {
+          // Actualizar la solicitud existente a ABIERTA con el monto asignado
+          sesionAperturada = await prisma.cajaSession.update({
+            where: { id: sesionSolicitada.id },
+            data: {
+              montoApertura: montoSolicitado,
+              estado: "ABIERTA",
+              fechaApertura: hoy
+            }
+          });
+        } else {
+          // Crear una nueva sesión directa
+          sesionAperturada = await prisma.cajaSession.create({
+            data: {
+              cajeroId,
+              montoApertura: montoSolicitado,
+              estado: "ABIERTA",
+              fechaApertura: hoy
+            }
+          });
+        }
 
-        return NextResponse.json({ success: true, session: nuevaSesion });
+        return NextResponse.json({ success: true, session: sesionAperturada }, { headers: noCacheHeaders });
       }
 
       if (action === "DIRECT_DEPOSIT") {
         if (!monto || isNaN(Number(monto)) || Number(monto) <= 0 || !concepto || !concepto.trim()) {
-          return NextResponse.json({ error: "Ingresa un monto válido mayor a 0 y el concepto del depósito" }, { status: 400 });
+          return NextResponse.json({ error: "Ingresa un monto válido mayor a 0 y el concepto del depósito" }, { status: 400, headers: noCacheHeaders });
         }
 
         const deposito = await prisma.depositoMunicipal.create({
@@ -429,18 +505,18 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        return NextResponse.json({ success: true, deposito });
+        return NextResponse.json({ success: true, deposito }, { headers: noCacheHeaders });
       }
 
       if (action === "APPROVE") {
-        if (!sessionId) return NextResponse.json({ error: "ID de sesión requerido" }, { status: 400 });
+        if (!sessionId) return NextResponse.json({ error: "ID de sesión requerido" }, { status: 400, headers: noCacheHeaders });
 
         const session = await prisma.cajaSession.findUnique({
           where: { id: sessionId }
         });
 
         if (!session || session.estado !== "SOLICITADO_CIERRE") {
-          return NextResponse.json({ error: "La sesión no se encuentra en estado SOLICITADO_CIERRE" }, { status: 400 });
+          return NextResponse.json({ error: "La sesión no se encuentra en estado SOLICITADO_CIERRE" }, { status: 400, headers: noCacheHeaders });
         }
 
         const updated = await prisma.cajaSession.update({
@@ -450,13 +526,14 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        return NextResponse.json({ success: true, session: updated });
+        return NextResponse.json({ success: true, session: updated }, { headers: noCacheHeaders });
       }
 
-      return NextResponse.json({ error: "Acción no válida para Administrador" }, { status: 400 });
+      return NextResponse.json({ error: "Acción no válida para Administrador" }, { status: 400, headers: noCacheHeaders });
     }
   } catch (error) {
     console.error("Error en API de cajas:", error);
-    return NextResponse.json({ error: "No se pudo procesar la solicitud de caja" }, { status: 500 });
+    return NextResponse.json({ error: "No se pudo procesar la solicitud de caja" }, { status: 500, headers: noCacheHeaders });
   }
 }
+

@@ -137,6 +137,30 @@ export default function CajeroCajaPage() {
     });
   };
 
+  const handleSolicitarApertura = () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/cajas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "REQUEST_OPEN" }),
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          setErrorMsg(body.error ?? "No se pudo enviar la solicitud de apertura.");
+        } else {
+          setSuccessMsg("Solicitud de apertura enviada con éxito al Administrador MPT.");
+          void cargarCaja(false);
+        }
+      } catch (err) {
+        setErrorMsg("Error de red al solicitar la apertura de caja.");
+      }
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center gap-3">
@@ -168,7 +192,7 @@ export default function CajeroCajaPage() {
         </div>
       )}
 
-      {/* CASO A: Sin caja abierta o cerrada — esperando al administrador */}
+      {/* CASO A: Sin caja abierta o cerrada — permitiendo solicitar al administrador */}
       {(!session || session.estado === "CERRADA") && (
         <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
@@ -184,13 +208,47 @@ export default function CajeroCajaPage() {
             </p>
             <p className="text-xs text-amber-700 leading-relaxed">
               El monto con el que iniciará tu caja es establecido exclusivamente por el <strong>Administrador MPT</strong>.
-              Una vez que el administrador te asigne tu fondo, tu caja aparecerá como activa automáticamente.
+              Presiona el botón a continuación para enviar una solicitud al administrador.
             </p>
           </div>
 
-          <p className="mt-5 text-xs text-slate-400">
-            La página se actualizará automáticamente cuando tu caja sea asignada.
+          <div className="mt-6">
+            <button
+              onClick={handleSolicitarApertura}
+              disabled={pending}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--blue)] hover:bg-blue-700 px-5 py-3.5 text-sm font-bold text-white shadow-md transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {pending ? <LoaderCircle className="animate-spin" size={18} /> : <Store size={18} />}
+              Solicitar Apertura de Caja al Administrador
+            </button>
+          </div>
+
+          <p className="mt-4 text-xs text-slate-400">
+            La página se actualizará automáticamente cuando tu caja sea asignada por el Administrador.
           </p>
+        </div>
+      )}
+
+      {/* CASO A.2: Solicitud de Apertura Enviada - Esperando Administrador */}
+      {session && (session.estado as string) === "SOLICITADO_APERTURA" && (
+        <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50/80 p-8 shadow-sm text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+            <Clock size={32} className="animate-pulse" />
+          </div>
+          <span className="text-xs font-bold uppercase tracking-widest text-amber-600">Solicitud Enviada</span>
+          <h2 className="mt-1 text-xl font-black text-slate-900">En espera de asignación de fondo</h2>
+
+          <p className="mt-3 text-sm leading-relaxed text-slate-700">
+            Tu solicitud de apertura fue notificada al <strong>Administrador MPT</strong>. En cuanto el administrador te asigne el fondo inicial, tu caja se abrirá automáticamente sin necesidad de recargar la página.
+          </p>
+
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-amber-800">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-600"></span>
+            </span>
+            Sincronizando caja en tiempo real...
+          </div>
         </div>
       )}
 

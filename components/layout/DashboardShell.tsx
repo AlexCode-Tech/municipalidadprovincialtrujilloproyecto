@@ -33,7 +33,19 @@ const navByRole = {
 
 const roleLabel: Record<Rol, string> = { ADMIN: "Administrador", NEGOCIO: "Negocio", CAJERO: "Cajero", INSPECTOR: "Inspector" };
 
-export function DashboardShell({ role, name, children }: { role: Rol; name: string; children: React.ReactNode }) {
+export function DashboardShell({
+  role,
+  name,
+  userEmail,
+  userId,
+  children
+}: {
+  role: Rol;
+  name: string;
+  userEmail?: string;
+  userId?: string;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pendingCajasCount, setPendingCajasCount] = useState(0);
@@ -65,7 +77,14 @@ export function DashboardShell({ role, name, children }: { role: Rol; name: stri
 
     async function checkUserActive() {
       try {
-        const res = await fetch(`/api/auth/check?t=${Date.now()}&r=${Math.random()}`, {
+        const queryParams = new URLSearchParams({
+          t: Date.now().toString(),
+          r: Math.random().toString(),
+        });
+        if (userEmail) queryParams.set("email", userEmail);
+        if (userId) queryParams.set("userId", userId);
+
+        const res = await fetch(`/api/auth/check?${queryParams.toString()}`, {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -95,7 +114,7 @@ export function DashboardShell({ role, name, children }: { role: Rol; name: stri
       active = false;
       clearInterval(interval);
     };
-  }, [role]);
+  }, [role, userEmail, userId]);
 
   // Consultar en tiempo real si hay cajas pendientes de cierre para la alerta del Administrador
   useEffect(() => {
@@ -107,9 +126,10 @@ export function DashboardShell({ role, name, children }: { role: Rol; name: stri
       try {
         const res = await fetch(`/api/cajas?t=${Date.now()}`);
         if (res.ok && active) {
-          const sessions = await res.json();
-          if (Array.isArray(sessions)) {
-            const count = sessions.filter((s: any) => s.estado === "SOLICITADO_CIERRE").length;
+          const data = await res.json();
+          const sessionList = Array.isArray(data) ? data : (data.sessions || []);
+          if (Array.isArray(sessionList)) {
+            const count = sessionList.filter((s: any) => s.estado === "SOLICITADO_CIERRE" || s.estado === "SOLICITADO_APERTURA").length;
             setPendingCajasCount(count);
           }
         }

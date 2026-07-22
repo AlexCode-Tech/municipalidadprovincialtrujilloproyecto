@@ -54,6 +54,7 @@ enum EstadoCaja {
   ABIERTA
   SOLICITADO_CIERRE
   CERRADA
+  SOLICITADO_APERTURA
 }
 
 model Usuario {
