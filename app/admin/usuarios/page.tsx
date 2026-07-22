@@ -438,13 +438,13 @@ export default function AdminUsuariosPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Correo electrónico *</label>
+                <label className="block text-xs font-bold text-slate-700">Correo electrónico</label>
                 <input
                   type="email"
                   value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs font-semibold text-slate-900 outline-none focus:border-blue-600"
-                  required
+                  disabled
+                  readOnly
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-500 cursor-not-allowed outline-none select-none"
                 />
               </div>
 
