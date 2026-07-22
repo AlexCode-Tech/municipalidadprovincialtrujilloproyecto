@@ -119,9 +119,8 @@ export async function crearPreferencia(input: { tramiteId: string; titulo: strin
   const appUrl = esLocal ? rawUrl : rawUrl.replace(/^http:\/\//, "https://");
   const autoReturn = esLocal ? undefined : "approved";
 
-  // Si estamos en local, usamos un correo de comprador ficticio para que Mercado Pago
-  // no deshabilite el botón de pago al detectar que el comprador es el mismo dueño de las credenciales (auto-pago).
-  const emailPagador = esLocal ? "comprador-test-mpt@testuser.com" : input.email;
+  // Si el correo es de demo o no está especificado, omitimos payer.email para que el usuario pueda escribir su correo real en la pasarela de Mercado Pago.
+  const emailPagador = (input.email && !input.email.endsWith("@demo.pe")) ? input.email : undefined;
 
   const response = await new Preference(getClient()).create({
     body: {
@@ -134,13 +133,7 @@ export async function crearPreferencia(input: { tramiteId: string; titulo: strin
           currency_id: "PEN",
         },
       ],
-      payer: {
-        email: emailPagador,
-        identification: esLocal ? {
-          type: "DNI",
-          number: "71234567",
-        } : undefined,
-      },
+      payer: emailPagador ? { email: emailPagador } : undefined,
       external_reference: input.tramiteId,
       notification_url: process.env.MP_WEBHOOK_URL || undefined,
       back_urls: {
@@ -153,7 +146,7 @@ export async function crearPreferencia(input: { tramiteId: string; titulo: strin
   });
   return {
     preferenceId: response.id,
-    checkoutUrl: response.sandbox_init_point ?? response.init_point ?? "",
+    checkoutUrl: response.init_point ?? response.sandbox_init_point ?? "",
   };
 }
 
