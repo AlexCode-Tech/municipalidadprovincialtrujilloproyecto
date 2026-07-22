@@ -81,7 +81,7 @@ export default function SolicitudesPage() {
 
   const getLegibleEstado = (t: TramiteDB) => {
     switch (t.estado) {
-      case "BORRADOR": return "Borrador";
+      case "BORRADOR":
       case "PAGO_PENDIENTE":
       case "PENDIENTE_PAGO": return "Pago pendiente";
       case "PAGO_RECHAZADO": return "Pago rechazado";

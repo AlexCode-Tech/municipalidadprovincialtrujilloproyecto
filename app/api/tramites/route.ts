@@ -47,7 +47,15 @@ export async function GET(request: NextRequest) {
   const access = await requireRole(request, "CAJERO");
   if (access.error) return access.error;
 
-  const tramites = await getPrisma().tramite.findMany({
+  const prisma = getPrisma();
+
+  // Migrar cualquier trámite histórico en BORRADOR a PAGO_PENDIENTE en la BD
+  await prisma.tramite.updateMany({
+    where: { estado: "BORRADOR" },
+    data: { estado: "PAGO_PENDIENTE" }
+  }).catch(() => {});
+
+  const tramites = await prisma.tramite.findMany({
     take: 100,
     orderBy: { actualizadoEn: "desc" },
     include: { negocio: true, pagos: true, inspecciones: true }
@@ -179,14 +187,14 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        if (["BORRADOR", "PAGO_PENDIENTE", "PAGO_RECHAZADO", "INSPECCION_PROGRAMADA", "OBSERVADO"].includes(ultimo.estado)) {
+        if (["PAGO_PENDIENTE", "PAGO_RECHAZADO", "INSPECCION_PROGRAMADA", "OBSERVADO", "EN_INSPECCION", "SUBSANADO"].includes(ultimo.estado)) {
           return NextResponse.json(
             { error: `El RUC ${ruc} ya cuenta con un trámite activo en proceso (${ultimo.codigo}).` },
             { status: 400 }
           );
         }
 
-        // Si el trámite anterior de este RUC está VENCIDO o DENEGADO, limpiar registros antiguos de este RUC únicamente
+        // Si el trámite anterior de este RUC está BORRADOR, VENCIDO o DENEGADO, limpiar registros antiguos de este RUC únicamente
         await getPrisma().inspeccion.deleteMany({ where: { tramite: { negocioId: negocioExistenteRuc.id } } });
         await getPrisma().pago.deleteMany({ where: { tramite: { negocioId: negocioExistenteRuc.id } } });
         await getPrisma().licencia.deleteMany({ where: { tramite: { negocioId: negocioExistenteRuc.id } } });
@@ -267,7 +275,7 @@ export async function POST(request: NextRequest) {
     const count = await getPrisma().tramite.count();
     const codigo = `SOL-${new Date().getFullYear()}-${String(count + 1).padStart(6, "0")}`;
 
-    // 5. Crear el trámite en la BD
+    // 5. Crear el trámite en la BD (siempre en estado PAGO_PENDIENTE, nunca BORRADOR)
     const isRenovacion = body.tipoTramite === "RENOVACION";
     const poseeCambiosEstructura = body.poseeCambiosEstructura === true;
     const confirmacionSinCambios = body.confirmacionSinCambios === true;
@@ -279,6 +287,7 @@ export async function POST(request: NextRequest) {
         planoValidado: isRenovacion && confirmacionSinCambios ? true : (body.planoValidado === true),
         codigo,
         cajeroId,
+        estado: "PAGO_PENDIENTE",
         tipoTramite: (body.tipoTramite as string) || "INICIAL",
         esRenovacion: isRenovacion,
         poseeCambiosEstructura,

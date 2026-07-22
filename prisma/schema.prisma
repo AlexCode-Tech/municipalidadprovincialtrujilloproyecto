@@ -97,7 +97,7 @@ model Tramite {
   negocio            Negocio       @relation(fields: [negocioId], references: [id])
   cajeroId           String?
   cajero             Usuario?      @relation("CajeroTramites", fields: [cajeroId], references: [id])
-  estado             EstadoTramite @default(BORRADOR)
+  estado             EstadoTramite @default(PAGO_PENDIENTE)
   monto              Decimal       @default(180) @db.Decimal(10, 2)
   planoUrl           String?
   planosUrl          String?       // Alias para compatibilidad de nomenclatura

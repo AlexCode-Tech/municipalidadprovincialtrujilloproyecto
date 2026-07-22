@@ -55,7 +55,7 @@ export default function SolicitudesPage() {
 
   const getLegibleEstado = (t: TramiteDB) => {
     switch (t.estado) {
-      case "BORRADOR": return "En revisión";
+      case "BORRADOR":
       case "PAGO_PENDIENTE": return "Pago pendiente";
       case "PAGO_RECHAZADO": return "Pago rechazado";
       case "INSPECCION_PROGRAMADA": {
@@ -75,7 +75,7 @@ export default function SolicitudesPage() {
   };
 
   const tramitesFiltrados = tramites.filter((t) => {
-    if (["BORRADOR", "PAGO_PENDIENTE", "PAGO_RECHAZADO"].includes(t.estado)) return false;
+    if (["PAGO_PENDIENTE", "PAGO_RECHAZADO"].includes(t.estado)) return false;
     if (!busqueda) return true;
     const q = busqueda.toLowerCase();
     return (

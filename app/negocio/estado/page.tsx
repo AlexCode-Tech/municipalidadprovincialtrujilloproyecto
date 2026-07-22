@@ -125,7 +125,7 @@ export default function EstadoPage() {
   // 1. Mapear estado del trámite a una etiqueta legible
   const getLegibleEstado = (estado: string) => {
     switch (estado) {
-      case "BORRADOR": return "Borrador";
+      case "BORRADOR":
       case "PAGO_PENDIENTE": return "Pago pendiente";
       case "PAGO_RECHAZADO": return "Pago rechazado";
       case "INSPECCION_PROGRAMADA": return "Inspección programada";

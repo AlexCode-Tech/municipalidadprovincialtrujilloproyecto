@@ -164,14 +164,14 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        if (["BORRADOR", "PAGO_PENDIENTE", "PAGO_RECHAZADO", "INSPECCION_PROGRAMADA", "OBSERVADO"].includes(ultimo.estado)) {
+        if (["PAGO_PENDIENTE", "PAGO_RECHAZADO", "INSPECCION_PROGRAMADA", "OBSERVADO", "EN_INSPECCION", "SUBSANADO"].includes(ultimo.estado)) {
           return NextResponse.json(
             { error: `El RUC ${ruc} ya cuenta con un trámite activo en proceso (${ultimo.codigo}).` },
             { status: 400 }
           );
         }
 
-        // Si el trámite anterior de este RUC está VENCIDO o DENEGADO, limpiar registros antiguos de este RUC únicamente
+        // Si el trámite anterior de este RUC está BORRADOR, VENCIDO o DENEGADO, limpiar registros antiguos de este RUC únicamente
         await getPrisma().inspeccion.deleteMany({ where: { tramite: { negocioId: negocioExistenteRuc.id } } });
         await getPrisma().pago.deleteMany({ where: { tramite: { negocioId: negocioExistenteRuc.id } } });
         await getPrisma().licencia.deleteMany({ where: { tramite: { negocioId: negocioExistenteRuc.id } } });
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
     const count = await getPrisma().tramite.count();
     const codigo = `MPT-${new Date().getFullYear()}-${String(count + 1).padStart(6, "0")}`;
 
-    // 5. Crear el trámite en la BD
+    // 5. Crear el trámite en la BD (estado PAGO_PENDIENTE)
     const tramite = await getPrisma().tramite.create({
       data: {
         negocioId,
@@ -260,6 +260,7 @@ export async function POST(request: NextRequest) {
         planoValidado: true,
         codigo,
         cajeroId,
+        estado: "PAGO_PENDIENTE",
       },
     });
 
