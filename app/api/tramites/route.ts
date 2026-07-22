@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        if (["PAGO_PENDIENTE", "PAGO_RECHAZADO", "INSPECCION_PROGRAMADA", "OBSERVADO", "EN_INSPECCION", "SUBSANADO"].includes(ultimo.estado)) {
+        if (["INSPECCION_PROGRAMADA", "EN_INSPECCION", "OBSERVADO", "SUBSANADO"].includes(ultimo.estado)) {
           return NextResponse.json(
             { error: `El RUC ${ruc} ya cuenta con un trámite activo en proceso (${ultimo.codigo}).` },
             { status: 400 }
