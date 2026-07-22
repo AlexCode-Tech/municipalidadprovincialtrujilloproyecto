@@ -262,3 +262,23 @@ ALTER TABLE "Inspeccion" ADD CONSTRAINT "Inspeccion_inspectorId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "Licencia" ADD CONSTRAINT "Licencia_tramiteId_fkey" FOREIGN KEY ("tramiteId") REFERENCES "Tramite"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- ==========================================
+-- INSERTAR USUARIOS SEMILLA (LOGINS PREDETERMINADOS)
+-- ==========================================
+INSERT INTO "Usuario" (id, nombre, email, "passwordHash", rol, estado, "actualizadoEn") VALUES
+('cmru4zxd00000trg835k7sisj', 'Administrador Único', 'alexpsm2005@gmail.com', '$2b$12$tvEA8b0lkx6wroCg23LhwOLIOaExyWBtjE7CXar8hmgBO6W7MfG9a', 'ADMIN', 'ACTIVO', NOW())
+ON CONFLICT (email) DO UPDATE SET "passwordHash" = EXCLUDED."passwordHash", rol = EXCLUDED.rol, estado = EXCLUDED.estado;
+
+INSERT INTO "Usuario" (id, nombre, email, "passwordHash", rol, estado, "actualizadoEn") VALUES
+('cmru5ktvv0001tracq6wxpi59', 'María Torres', 'cajero@demo.pe', '$2b$12$tvEA8b0lkx6wroCg23LhwOLIOaExyWBtjE7CXar8hmgBO6W7MfG9a', 'CAJERO', 'ACTIVO', NOW())
+ON CONFLICT (email) DO UPDATE SET "passwordHash" = EXCLUDED."passwordHash", rol = EXCLUDED.rol, estado = EXCLUDED.estado;
+
+INSERT INTO "Usuario" (id, nombre, email, "passwordHash", rol, estado, "actualizadoEn") VALUES
+('cmru5ktvv0002tracq6wxpi59', 'Juan Carlos', 'cajero2@demo.pe', '$2b$12$tvEA8b0lkx6wroCg23LhwOLIOaExyWBtjE7CXar8hmgBO6W7MfG9a', 'CAJERO', 'ACTIVO', NOW())
+ON CONFLICT (email) DO UPDATE SET "passwordHash" = EXCLUDED."passwordHash", rol = EXCLUDED.rol, estado = EXCLUDED.estado;
+
+INSERT INTO "Usuario" (id, nombre, email, "passwordHash", rol, estado, "actualizadoEn") VALUES
+('cmru5ktvv0003tracq6wxpi59', 'Carlos Mendoza', 'inspector@demo.pe', '$2b$12$tvEA8b0lkx6wroCg23LhwOLIOaExyWBtjE7CXar8hmgBO6W7MfG9a', 'INSPECTOR', 'ACTIVO', NOW())
+ON CONFLICT (email) DO UPDATE SET "passwordHash" = EXCLUDED."passwordHash", rol = EXCLUDED.rol, estado = EXCLUDED.estado;
+
