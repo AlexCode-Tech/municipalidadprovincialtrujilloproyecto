@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { LogoMunicipal } from "@/components/brand/LogoMunicipal";
-import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, LoaderCircle, Lock, Mail, ShieldCheck } from "lucide-react";
 
 type Paso = "email" | "codigo";
 
-export default function OlvidePasswordPage() {
+function OlvidePasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [paso, setPaso] = useState<Paso>("email");
@@ -48,7 +48,6 @@ export default function OlvidePasswordPage() {
       }
     });
   };
-
 
   const handleVerificarCodigo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +111,6 @@ export default function OlvidePasswordPage() {
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-[0_18px_55px_rgba(12,31,80,.09)] sm:p-8">
-            {/* Indicador de pasos */}
             <div className="mb-6 flex items-center gap-2">
               <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${paso === "email" ? "bg-[var(--blue)] text-white" : "bg-emerald-500 text-white"}`}>
                 {paso === "email" ? "1" : <CheckCircle2 size={14} />}
@@ -265,5 +263,18 @@ export default function OlvidePasswordPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function OlvidePasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-[#f0f4fb]">
+        <LoaderCircle className="animate-spin text-[var(--blue)]" size={36} />
+        <p className="text-sm font-semibold text-slate-500">Cargando...</p>
+      </div>
+    }>
+      <OlvidePasswordForm />
+    </Suspense>
   );
 }
