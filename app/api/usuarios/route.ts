@@ -35,11 +35,6 @@ export async function POST(request: NextRequest) {
     const input = schema.parse(await request.json());
     const prisma = getPrisma();
 
-    // Restringir creación exclusivamente al rol de Cajero
-    if (input.rol !== "CAJERO") {
-      return NextResponse.json({ error: "Solo está permitido crear cuentas con el rol de Cajero." }, { status: 400 });
-    }
-
     // Validar límite total de cajeros (máximo 5)
     if (input.rol === "CAJERO") {
       const totalCajeros = await prisma.usuario.count({

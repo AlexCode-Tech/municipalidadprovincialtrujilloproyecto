@@ -362,10 +362,32 @@ export default function AdminUsuariosPage() {
 
             <div>
               <label className="text-sm font-semibold block mb-2">Rol Asignado</label>
-              <div className="grid grid-cols-1">
-                <div className="flex h-11 items-center justify-center rounded-xl text-xs font-bold border bg-blue-50 border-blue-500 text-blue-700 select-none">
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setRol("CAJERO")}
+                  className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs font-bold border transition ${
+                    rol === "CAJERO"
+                      ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-500/20"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <CreditCard size={15} />
                   Cajero
-                </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRol("INSPECTOR")}
+                  className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs font-bold border transition ${
+                    rol === "INSPECTOR"
+                      ? "bg-purple-50 border-purple-500 text-purple-700 ring-2 ring-purple-500/20"
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <ShieldCheck size={15} />
+                  Inspector
+                </button>
               </div>
             </div>
 
@@ -429,8 +451,32 @@ export default function AdminUsuariosPage() {
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1.5">Rol Asignado</label>
-                <div className="flex h-10 items-center justify-center rounded-xl text-xs font-bold border bg-blue-50 border-blue-500 text-blue-700 select-none">
-                  {editRol === "CAJERO" ? "Cajero" : "Inspector Técnico"}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditRol("CAJERO")}
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold border transition ${
+                      editRol === "CAJERO"
+                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-500/20"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <CreditCard size={14} />
+                    Cajero
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditRol("INSPECTOR")}
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs font-bold border transition ${
+                      editRol === "INSPECTOR"
+                        ? "bg-purple-50 border-purple-500 text-purple-700 ring-2 ring-purple-500/20"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <ShieldCheck size={14} />
+                    Inspector
+                  </button>
                 </div>
               </div>
 
