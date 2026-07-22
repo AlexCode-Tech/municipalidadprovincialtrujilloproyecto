@@ -1,5 +1,8 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { LoaderCircle, ShieldCheck, ArrowRight, ExternalLink, HelpCircle, AlertCircle, Play, CreditCard, QrCode, Split, X, Check } from "lucide-react";
