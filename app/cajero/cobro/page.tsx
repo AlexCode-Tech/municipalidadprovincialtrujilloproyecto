@@ -484,28 +484,7 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
                 </div>
               )}
 
-              {(metodo === "YAPE" || (metodo === "MIXTO" && parseFloat(montoYape || "0") > 0)) && (
-                <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50/50 to-white p-4 text-center space-y-3 shadow-inner">
-                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-blue-800">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-600 animate-ping"></span>
-                    Escanea para Pagar con YAPE
-                  </div>
-                  <div className="relative mx-auto w-60 h-auto overflow-hidden rounded-2xl border-4 border-white bg-white p-2 shadow-md">
-                    <img
-                      src="/qr-yape.jpg"
-                      alt="Código QR Yape MPT"
-                      className="w-full h-auto rounded-lg"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-slate-500 font-medium">Beneficiario:</p>
-                    <p className="text-xs font-black text-slate-800">Alex Paul Silvestre Miguel</p>
-                    <p className="text-[11px] font-bold text-blue-700 bg-blue-100/60 inline-block px-3 py-0.5 rounded-full mt-1">
-                      Monto: S/ {metodo === "YAPE" ? "180.00" : parseFloat(montoYape || "0").toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
+
 
               <button
                 disabled={pending}
