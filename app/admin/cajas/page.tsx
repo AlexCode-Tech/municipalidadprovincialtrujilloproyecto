@@ -108,6 +108,21 @@ export default function AdminCajasPage() {
   // Tab del panel de historial
   const [activeHistTab, setActiveHistTab] = useState<"turnos" | "transacciones">("turnos");
 
+  const handleDecimalInput = (val: string): string => {
+    if (!val) return "";
+    const sanitized = val.replace(",", ".");
+    const parts = sanitized.split(".");
+    if (parts.length > 1 && parts[1].length > 2) {
+      return `${parts[0]}.${parts[1].slice(0, 2)}`;
+    }
+    return sanitized;
+  };
+
+  const handleBlurFormat = (val: string, setter: (v: string) => void) => {
+    if (!val || isNaN(parseFloat(val))) return;
+    setter(parseFloat(val).toFixed(2));
+  };
+
   const cargarCajas = async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
@@ -1135,7 +1150,8 @@ export default function AdminCajasPage() {
                   step="0.01"
                   min="0.01"
                   value={depositMonto}
-                  onChange={(e) => setDepositMonto(e.target.value)}
+                  onChange={(e) => setDepositMonto(handleDecimalInput(e.target.value))}
+                  onBlur={() => handleBlurFormat(depositMonto, setDepositMonto)}
                   className="h-11 w-full rounded-xl border border-slate-300 px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-600"
                   placeholder="0.00"
                   required
@@ -1263,9 +1279,10 @@ export default function AdminCajasPage() {
                       type="number"
                       step="0.01"
                       min="0"
-                      max={tesoreria.efectivoBoveda}
+                      max={Math.round(tesoreria.efectivoBoveda * 100) / 100}
                       value={openCajaMontoApertura}
-                      onChange={(e) => setOpenCajaMontoApertura(e.target.value)}
+                      onChange={(e) => setOpenCajaMontoApertura(handleDecimalInput(e.target.value))}
+                      onBlur={() => handleBlurFormat(openCajaMontoApertura, setOpenCajaMontoApertura)}
                       className={`h-12 w-full rounded-xl border pl-9 pr-3 text-xl font-black text-slate-900 outline-none transition ${
                         excedeSaldo
                           ? "border-red-400 bg-red-50 focus:border-red-500"
