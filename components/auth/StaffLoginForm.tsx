@@ -132,12 +132,14 @@ export function StaffLoginForm() {
         <label className="text-sm font-medium" htmlFor="staff-password">
           Contraseña
         </label>
-        <Link
-          href={`/login/olvide-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
-          className="text-xs font-semibold text-[var(--blue)] hover:underline"
-        >
-          ¿Olvidaste tu contraseña?
-        </Link>
+        {role === "ADMIN" && (
+          <Link
+            href={`/login/olvide-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+            className="text-xs font-semibold text-[var(--blue)] hover:underline"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        )}
       </div>
       <div className="mt-2 flex h-12 overflow-hidden rounded-xl border border-[var(--border)] focus-within:border-[var(--blue)] focus-within:ring-3 focus-within:ring-blue-100">
         <span className="grid w-12 place-items-center border-r border-[var(--border)] text-[#74809a]">
