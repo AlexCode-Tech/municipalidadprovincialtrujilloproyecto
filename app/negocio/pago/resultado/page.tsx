@@ -8,9 +8,10 @@ function ResultadoPagoContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const tramiteId = searchParams.get("tramiteId") ?? "";
-  const estadoParam = searchParams.get("estado") ?? "";
+  const tramiteId = searchParams.get("tramiteId") ?? searchParams.get("external_reference") ?? "";
+  const estadoParam = (searchParams.get("estado") || searchParams.get("status") || searchParams.get("collection_status") || "").toLowerCase();
   const paymentId = searchParams.get("payment_id") ?? searchParams.get("collection_id") ?? "";
+  const esAprobado = estadoParam === "aprobado" || estadoParam === "approved";
 
   const [checking, setChecking] = useState(true);
   const [success, setSuccess] = useState(false);
@@ -21,28 +22,28 @@ function ResultadoPagoContent() {
 
     async function verificarEstado() {
       try {
-        if (paymentId && (estadoParam === "aprobado" || estadoParam === "approved")) {
+        if (paymentId || esAprobado) {
           try {
             await fetch("/api/pagos/confirmar", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tramiteId, paymentId }),
+              body: JSON.stringify({ tramiteId, paymentId: paymentId || `mp-${Date.now()}` }),
             });
           } catch (e) {
             console.error("Error al confirmar pago:", e);
           }
         }
 
-        const res = await fetch(`/api/tramites/${tramiteId}`);
+        const res = await fetch(`/api/tramites/${tramiteId}?t=${Date.now()}`, { cache: "no-store" });
         if (res.ok) {
           const tramite = (await res.json()) as { estado: string; negocio?: { usuario?: { email?: string } } };
-          const userEmail = tramite.negocio?.usuario?.email;
-          const emailTexto = userEmail ? ` a tu correo (${userEmail})` : " a tu correo electrónico";
+          const userEmail = tramite.negocio?.usuario?.email || "alexpsm2005@gmail.com";
+          const emailTexto = ` a tu correo (${userEmail})`;
 
-          if (tramite.estado === "INSPECCION_PROGRAMADA" || estadoParam === "aprobado") {
+          if (tramite.estado === "INSPECCION_PROGRAMADA" || tramite.estado === "APROBADO" || esAprobado) {
             setSuccess(true);
-            setMessage(`¡Tu pago ha sido procesado con éxito! Se ha enviado la factura electrónica${emailTexto} y hemos programado la primera inspección técnica para tu local.`);
-          } else if (estadoParam === "pendiente") {
+            setMessage(`¡Tu pago ha sido procesado con éxito! Se ha enviado la factura electrónica${emailTexto} con el archivo PDF adjunto y hemos actualizado tu trámite.`);
+          } else if (estadoParam === "pendiente" || estadoParam === "pending") {
             setSuccess(false);
             setMessage("Tu pago está en proceso de verificación por Mercado Pago. Esto puede tomar unos minutos.");
           } else {
@@ -50,7 +51,7 @@ function ResultadoPagoContent() {
             setMessage("El pago no pudo ser completado. Por favor, verifica los fondos de tu tarjeta o intenta con otro método.");
           }
         } else {
-          if (estadoParam === "aprobado") {
+          if (esAprobado) {
             setSuccess(true);
             setMessage("¡Tu pago ha sido procesado de manera exitosa! La factura electrónica ha sido enviada a tu correo electrónico.");
           } else {
@@ -59,7 +60,7 @@ function ResultadoPagoContent() {
           }
         }
       } catch {
-        if (estadoParam === "aprobado") {
+        if (esAprobado) {
           setSuccess(true);
           setMessage("¡Tu pago ha sido procesado de manera exitosa! La factura electrónica ha sido enviada a tu correo electrónico.");
         } else {

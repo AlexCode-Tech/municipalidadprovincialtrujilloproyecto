@@ -12,7 +12,7 @@ export type ResultadoEnvio = {
 };
 
 /** Descarta correos ficticios (ej. @tramites.mpt.pe, @licencias.pe) y retorna un correo real válido */
-export function obtenerEmailReal(emailPrincipal?: string | null, emailFallback: string = "aleeexpsm2005@gmail.com"): string {
+export function obtenerEmailReal(emailPrincipal?: string | null, emailFallback: string = "alexpsm2005@gmail.com"): string {
   if (!emailPrincipal) return emailFallback;
   const e = emailPrincipal.trim().toLowerCase();
   if (e.endsWith("@tramites.mpt.pe") || e.endsWith("@licencias.pe") || e.includes("-auto@") || e.includes("demo@")) {
