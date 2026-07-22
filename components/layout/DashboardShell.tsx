@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { AlertCircle, ChevronRight, ClipboardList, FilePlus2, FileText, LogOut, Menu, Search, ShieldCheck, Store, X } from "lucide-react";
+import { AlertCircle, Building2, ChevronRight, ClipboardList, FilePlus2, FileText, LogOut, Menu, Search, ShieldCheck, Store, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LogoMunicipal } from "@/components/brand/LogoMunicipal";
 import type { Rol } from "@/lib/constantes";
@@ -11,10 +11,10 @@ import type { Rol } from "@/lib/constantes";
 const navByRole = {
   ADMIN: [
     { href: "/admin/usuarios", label: "Usuarios", icon: ShieldCheck },
+    { href: "/admin/negocios", label: "Negocios", icon: Building2 },
     { href: "/admin/cajas", label: "Cajas y Cierre", icon: ClipboardList },
     { href: "/admin/supervision", label: "Supervisión", icon: Search },
     { href: "/admin/notificaciones", label: "Notificaciones", icon: FileText },
-    { href: "/admin/simulador", label: "Simulador MPT", icon: FilePlus2 },
   ],
   NEGOCIO: [
     { href: "/negocio/estado", label: "Mi trámite", icon: ClipboardList },

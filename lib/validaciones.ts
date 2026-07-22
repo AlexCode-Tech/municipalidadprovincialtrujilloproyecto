@@ -21,22 +21,8 @@ export const solicitudTramiteSchema = z.object({
   distrito: z.string().trim().min(2, "Consulta el RUC para obtener el distrito"),
   provincia: z.string().trim().min(2, "Consulta el RUC para obtener la provincia"),
   departamento: z.string().trim().min(2, "Consulta el RUC para obtener el departamento"),
-  telefono: z.union([
-    z.literal(""),
-    z.string().regex(/^9\d{8}$/, "Ingresa un celular peruano válido de 9 dígitos"),
-  ]),
-  email: z.union([
-    z.literal(""),
-    z.email("Ingresa un correo electrónico válido"),
-  ]),
-}).superRefine((data, context) => {
-  if (!data.telefono && !data.email) {
-    context.addIssue({
-      code: "custom",
-      path: ["contacto"],
-      message: "Ingresa al menos un celular o un correo electrónico",
-    });
-  }
+  telefono: z.string().regex(/^9\d{8}$/, "Ingresa un celular peruano válido de 9 dígitos"),
+  email: z.email("Ingresa un correo electrónico válido"),
 });
 
 export const pagoTarjetaSchema = z.object({

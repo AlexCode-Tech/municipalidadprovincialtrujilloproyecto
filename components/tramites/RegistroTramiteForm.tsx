@@ -168,7 +168,9 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (planoEstado !== "valido") return;
+    // Only require plano validation for INICIAL or RENOVACION with structural changes
+    const requierePlano = tipoTramite === "INICIAL" || tieneCambios;
+    if (requierePlano && planoEstado !== "valido") return;
 
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
     const result = solicitudTramiteSchema.safeParse(values);
@@ -473,7 +475,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           {formErrors.departamento ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.departamento}</span> : null}
         </label>
         <label className="text-sm font-medium">
-          Celular
+          Celular <span className="text-[var(--danger)]" aria-hidden="true">*</span>
           <input
             className={input}
             name="telefono"
@@ -482,19 +484,19 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             pattern="9[0-9]{8}"
             maxLength={9}
             placeholder="987654321"
-            aria-invalid={Boolean(formErrors.telefono || formErrors.contacto)}
+            required
+            aria-invalid={Boolean(formErrors.telefono)}
             onChange={(event) => {
               setTelefono(event.target.value.replace(/\D/g, "").slice(0, 9));
-              clearErrors("telefono", "contacto");
+              clearErrors("telefono");
             }}
           />
           {formErrors.telefono ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.telefono}</span> : null}
         </label>
         <label className="text-sm font-medium md:col-span-2">
-          Correo electrónico
-          <input className={input} name="email" type="email" placeholder="contacto@negocio.pe" aria-invalid={Boolean(formErrors.email || formErrors.contacto)} onChange={() => clearErrors("email", "contacto")} />
+          Correo electrónico <span className="text-[var(--danger)]" aria-hidden="true">*</span>
+          <input className={input} name="email" type="email" placeholder="contacto@negocio.pe" required aria-invalid={Boolean(formErrors.email)} onChange={() => clearErrors("email")} />
           {formErrors.email ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.email}</span> : null}
-          {formErrors.contacto ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.contacto}</span> : <span className="mt-1.5 block text-xs font-normal text-[var(--muted)]">Ingresa al menos un celular o un correo electrónico.</span>}
         </label>
       </div>
 

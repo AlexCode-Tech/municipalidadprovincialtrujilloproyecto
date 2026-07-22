@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (access.error) return access.error;
   
   const usuarios = await getPrisma().usuario.findMany({
-    where: { rol: { not: "ADMIN" } },
+    where: { rol: { in: ["CAJERO", "INSPECTOR"] } },
     select: { id: true, nombre: true, email: true, rol: true, estado: true, creadoEn: true },
     orderBy: { creadoEn: "desc" }
   });
@@ -34,6 +34,11 @@ export async function POST(request: NextRequest) {
   try {
     const input = schema.parse(await request.json());
     const prisma = getPrisma();
+
+    // Restringir creación exclusivamente al rol de Cajero
+    if (input.rol !== "CAJERO") {
+      return NextResponse.json({ error: "Solo está permitido crear cuentas con el rol de Cajero." }, { status: 400 });
+    }
 
     // Validar límite total de cajeros (máximo 5)
     if (input.rol === "CAJERO") {

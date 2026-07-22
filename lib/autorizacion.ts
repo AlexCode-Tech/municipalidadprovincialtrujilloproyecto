@@ -24,8 +24,9 @@ export async function requireRole(requestOrRoles: NextRequest | Rol, ...rest: Ro
   const session = await (request ? (auth as any)(request) : auth());
   let user = session?.user as SessionUser | undefined;
 
-  // Autologin para NEGOCIO en entorno de pruebas/desarrollo si no hay una sesión activa
-  if (!user && roles.includes("NEGOCIO")) {
+  // Autologin para NEGOCIO en entorno de pruebas/desarrollo si no hay una sesión activa o el rol es inválido/expirado
+  const hasValidRole = user && user.rol && roles.includes(user.rol);
+  if (!hasValidRole && roles.includes("NEGOCIO")) {
     user = {
       id: "demo-negocio",
       rol: "NEGOCIO",
@@ -40,7 +41,7 @@ export async function requireRole(requestOrRoles: NextRequest | Rol, ...rest: Ro
   }
 
   // Verificar si la cuenta ha sido desactivada en la base de datos (excepto para Administradores)
-  if (user.email && user.email !== "admin@demo.pe" && user.id !== "demo-admin" && user.rol !== "ADMIN") {
+  if (user.email && user.email !== "alexpsm2005@gmail.com" && user.id !== "demo-admin" && user.rol !== "ADMIN") {
     const dbUser = await getPrisma().usuario.findFirst({
       where: { OR: [{ id: user.id }, { email: user.email }] },
       select: { estado: true, rol: true }

@@ -3,13 +3,14 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { AlertCircle, CreditCard, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { RUTAS_POR_ROL, type Rol } from "@/lib/constantes";
 
 type StaffRol = Extract<Rol, "ADMIN" | "CAJERO" | "INSPECTOR">;
 
 const staffRoles: { id: StaffRol; label: string; icon: typeof CreditCard | typeof ShieldCheck; email: string }[] = [
-  { id: "ADMIN", label: "Admin", icon: ShieldCheck, email: "admin@demo.pe" },
+  { id: "ADMIN", label: "Admin", icon: ShieldCheck, email: "alexpsm2005@gmail.com" },
   { id: "CAJERO", label: "Cajero", icon: CreditCard, email: "cajero@demo.pe" },
   { id: "INSPECTOR", label: "Inspector", icon: ShieldCheck, email: "inspector@demo.pe" },
 ];
@@ -17,8 +18,8 @@ const staffRoles: { id: StaffRol; label: string; icon: typeof CreditCard | typeo
 export function StaffLoginForm() {
   const router = useRouter();
   const [role, setRole] = useState<StaffRol>("ADMIN");
-  const [email, setEmail] = useState("admin@demo.pe");
-  const [password, setPassword] = useState("demo123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -50,8 +51,8 @@ export function StaffLoginForm() {
 
   const selectRole = (nextRole: StaffRol) => {
     setRole(nextRole);
-    setEmail(staffRoles.find((item) => item.id === nextRole)?.email ?? "");
-    setPassword("demo123");
+    setEmail("");
+    setPassword("");
     setError("");
   };
 
@@ -122,13 +123,22 @@ export function StaffLoginForm() {
           type="email"
           autoComplete="email"
           required
+          placeholder="ej. tucorreo@municipalidad.pe"
           className="min-w-0 flex-1 px-3 outline-none"
         />
       </div>
 
-      <label className="mt-4 block text-sm font-medium" htmlFor="staff-password">
-        Contraseña
-      </label>
+      <div className="mt-4 flex items-center justify-between">
+        <label className="text-sm font-medium" htmlFor="staff-password">
+          Contraseña
+        </label>
+        <Link
+          href={`/login/olvide-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+          className="text-xs font-semibold text-[var(--blue)] hover:underline"
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </div>
       <div className="mt-2 flex h-12 overflow-hidden rounded-xl border border-[var(--border)] focus-within:border-[var(--blue)] focus-within:ring-3 focus-within:ring-blue-100">
         <span className="grid w-12 place-items-center border-r border-[var(--border)] text-[#74809a]">
           <LockKeyhole size={18} />
@@ -140,6 +150,7 @@ export function StaffLoginForm() {
           type={showPassword ? "text" : "password"}
           autoComplete="current-password"
           required
+          placeholder="ej. M1Contraseña2026"
           className="min-w-0 flex-1 px-3 outline-none"
         />
         <button
@@ -161,7 +172,7 @@ export function StaffLoginForm() {
 
       <button
         disabled={pending}
-        className="focus-ring mt-2 h-12 w-full rounded-xl bg-[var(--blue)] px-5 font-semibold text-white shadow-sm transition hover:bg-[var(--blue-hover)] disabled:cursor-wait disabled:opacity-70"
+        className="focus-ring mt-6 h-12 w-full rounded-xl bg-[var(--blue)] px-5 font-semibold text-white shadow-sm transition hover:bg-[var(--blue-hover)] disabled:cursor-wait disabled:opacity-70"
       >
         {pending ? "Validando…" : "Ingresar"}
       </button>

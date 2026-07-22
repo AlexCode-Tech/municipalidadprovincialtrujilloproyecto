@@ -41,8 +41,12 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Mapear al formato que consume la interfaz de InspeccionesHoy
-    const formateadas = inspecciones.map(ins => ({
+    const totalMax = 4;
+    const displayCompletadas = Math.min(completadasCount, totalMax);
+    const displayPendientesMax = Math.max(0, totalMax - displayCompletadas);
+
+    // Mapear al formato que consume la interfaz de InspeccionesHoy (cargando máximo los bloques disponibles restantes)
+    const formateadas = inspecciones.slice(0, displayPendientesMax).map(ins => ({
       id: ins.id,
       hora: new Date(ins.fechaProgramada).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }),
       negocio: ins.tramite.negocio.razonSocial,
@@ -55,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       inspecciones: formateadas,
-      completadasCount
+      completadasCount: displayCompletadas
     });
   } catch (error) {
     console.error("Error al obtener inspecciones de hoy:", error);

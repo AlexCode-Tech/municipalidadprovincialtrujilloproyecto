@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
+import { scaleUpPago } from "@/lib/registrar-pago";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    const scaledPagos = pagos.map(scaleUpPago);
+
     const inspecciones = await prisma.inspeccion.findMany({
       orderBy: { fechaProgramada: "desc" },
       include: {
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ pagos, inspecciones });
+    return NextResponse.json({ pagos: scaledPagos, inspecciones });
   } catch (error) {
     console.error("Error en supervisión general:", error);
     return NextResponse.json({ error: "No se pudieron obtener los registros de supervisión." }, { status: 500 });

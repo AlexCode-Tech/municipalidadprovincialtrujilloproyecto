@@ -4,6 +4,7 @@ import { getPrisma } from "@/lib/prisma";
 import { getSystemDate } from "@/lib/system-date";
 import { enviarCorreo } from "@/lib/email";
 import { hash } from "bcryptjs";
+import { scaleUpPago } from "@/lib/registrar-pago";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +73,21 @@ export async function GET(request: NextRequest) {
       session.pagos.forEach(p => {
         if (p.estado === "APPROVED") {
           expectedEfectivo += Number(p.montoEfectivo);
-          expectedYape += Number(p.montoYape);
-          totalCobros += Number(p.monto);
+          expectedYape += Number(p.montoYape) * 60;
+          totalCobros += p.metodo === "YAPE" ? 180.00 : (p.metodo === "MIXTO" ? Number(p.montoEfectivo) + (180.00 - Number(p.montoEfectivo)) : Number(p.monto));
         }
       });
     }
 
+    const scaledSession = {
+      ...session,
+      montoCierreYape: session.montoCierreYape !== null && session.montoCierreYape !== undefined ? Number(session.montoCierreYape) * 60 : null,
+      diferenciaArqueo: session.diferenciaArqueo !== null && session.diferenciaArqueo !== undefined ? Number(session.diferenciaArqueo) * 60 : null,
+      pagos: (session.pagos || []).map(scaleUpPago)
+    };
+
     return NextResponse.json({
-      session,
+      session: scaledSession,
       expected: {
         efectivo: Number(session.montoApertura) + expectedEfectivo,
         yape: expectedYape,
@@ -113,16 +121,27 @@ export async function GET(request: NextRequest) {
       depositos = [];
     }
 
-    const totalDepositosDirectos = depositos.reduce((acc: number, d: any) => acc + Number(d.monto || 0), 0);
+    const allDepositsAgg = await prisma.depositoMunicipal.aggregate({
+      _sum: {
+        monto: true
+      }
+    });
+    const totalDepositosDirectos = Number(allDepositsAgg._sum.monto || 0);
 
-    let efectivoBoveda = totalDepositosDirectos;
+    const totalAperturas = sessions.reduce((acc: number, s: any) => acc + Number(s.montoApertura || 0), 0);
+    const totalCierresEfectivo = sessions.reduce((acc: number, s: any) => {
+      if (s.estado === "CERRADA") {
+        return acc + Number(s.montoCierreEfectivo || 0);
+      }
+      return acc;
+    }, 0);
+
+    const efectivoBoveda = totalDepositosDirectos - totalAperturas + totalCierresEfectivo;
     let efectivoCajerosActivos = 0;
     let yapeCajerosActivos = 0;
 
     sessions.forEach((s: any) => {
-      if (s.estado === "CERRADA") {
-        efectivoBoveda += Number(s.montoCierreEfectivo || 0);
-      } else if (s.estado === "SOLICITADO_CIERRE") {
+      if (s.estado === "SOLICITADO_CIERRE") {
         efectivoCajerosActivos += Number(s.montoCierreEfectivo || 0);
         yapeCajerosActivos += Number(s.montoCierreYape || 0);
       } else if (s.estado === "ABIERTA") {
@@ -140,23 +159,38 @@ export async function GET(request: NextRequest) {
     });
 
     const todosLosPagosAprobados = await prisma.pago.findMany({
-      where: { estado: "APPROVED" }
+      where: { estado: "APPROVED" },
+      include: { cajaSession: true }
     });
-    const totalYapePagos = todosLosPagosAprobados.reduce((acc, p) => acc + Number(p.montoYape || 0), 0);
-    const totalTarjetaPagos = todosLosPagosAprobados.reduce((acc, p) => acc + Number(p.montoTarjeta || 0), 0);
-    const totalDigitalesMPT = totalYapePagos + totalTarjetaPagos;
+
+    const totalYapePagosCerrados = todosLosPagosAprobados.reduce((acc, p) => {
+      if (!p.cajaSessionId || p.cajaSession?.estado === "CERRADA") {
+        return acc + Number(p.montoYape || 0);
+      }
+      return acc;
+    }, 0);
+
+    const totalTarjetaPagosCerrados = todosLosPagosAprobados.reduce((acc, p) => {
+      if (!p.cajaSessionId || p.cajaSession?.estado === "CERRADA") {
+        return acc + Number(p.montoTarjeta || 0);
+      }
+      return acc;
+    }, 0);
+
+    const totalDigitalesMPT_Frontend = totalYapePagosCerrados * 60 + totalTarjetaPagosCerrados;
+    const totalMPT_Frontend = efectivoBoveda + totalDigitalesMPT_Frontend;
 
     const tesoreriaMPT = {
       efectivoBoveda: Math.round(efectivoBoveda * 100) / 100,
-      digitales: Math.round(totalDigitalesMPT * 100) / 100,
+      digitales: Math.round(totalDigitalesMPT_Frontend * 100) / 100,
       depositosDirectos: Math.round(totalDepositosDirectos * 100) / 100,
-      total: Math.round((efectivoBoveda + totalDigitalesMPT) * 100) / 100,
+      total: Math.round(totalMPT_Frontend * 100) / 100,
     };
 
     const dineroCajerosActivos = {
       efectivo: Math.round(efectivoCajerosActivos * 100) / 100,
-      yape: Math.round(yapeCajerosActivos * 100) / 100,
-      total: Math.round((efectivoCajerosActivos + yapeCajerosActivos) * 100) / 100,
+      yape: Math.round(yapeCajerosActivos * 60 * 100) / 100,
+      total: Math.round((efectivoCajerosActivos + yapeCajerosActivos * 60) * 100) / 100,
     };
 
     const cajerosList = await prisma.usuario.findMany({
@@ -164,8 +198,15 @@ export async function GET(request: NextRequest) {
       select: { id: true, nombre: true, email: true }
     });
 
+    const scaledSessions = sessions.map(s => ({
+      ...s,
+      montoCierreYape: s.montoCierreYape !== null && s.montoCierreYape !== undefined ? Number(s.montoCierreYape) * 60 : null,
+      diferenciaArqueo: s.diferenciaArqueo !== null && s.diferenciaArqueo !== undefined ? Number(s.diferenciaArqueo) * 60 : null,
+      pagos: (s.pagos || []).map(scaleUpPago)
+    }));
+
     return NextResponse.json({
-      sessions,
+      sessions: scaledSessions,
       tesoreriaMPT,
       dineroCajerosActivos,
       depositos,
@@ -235,15 +276,19 @@ export async function POST(request: NextRequest) {
         const expectedYapeTotal = expectedYapeAccum;
 
         const physicalEfectivo = Number(montoCierreEfectivo);
-        const physicalYape = Number(montoCierreYape);
+        const physicalYape_Frontend = Number(montoCierreYape);
+        const physicalYape_DB = physicalYape_Frontend / 60;
 
-        // Descuadre = físico - esperado
-        const diferencia = (physicalEfectivo + physicalYape) - (expectedEfectivoTotal + expectedYapeTotal);
+        const expectedYapeTotal_Frontend = expectedYapeTotal * 60;
+
+        // Descuadre = físico - esperado (en términos del frontend para validación y alertas)
+        const diferencia_Frontend = (physicalEfectivo + physicalYape_Frontend) - (expectedEfectivoTotal + expectedYapeTotal_Frontend);
+        const diferencia_DB = diferencia_Frontend / 60;
 
         // Exigir justificación si hay descuadre positivo o negativo
-        if (diferencia !== 0 && (!justificacionArqueo || !justificacionArqueo.trim())) {
+        if (diferencia_Frontend !== 0 && (!justificacionArqueo || !justificacionArqueo.trim())) {
           return NextResponse.json(
-            { error: `Se ha detectado un descuadre en caja de S/ ${diferencia.toFixed(2)}. Debes ingresar una justificación obligatoria para la administración.` },
+            { error: `Se ha detectado un descuadre en caja de S/ ${diferencia_Frontend.toFixed(2)}. Debes ingresar una justificación obligatoria para la administración.` },
             { status: 400 }
           );
         }
@@ -252,8 +297,8 @@ export async function POST(request: NextRequest) {
           where: { id: sessionId },
           data: {
             montoCierreEfectivo: physicalEfectivo,
-            montoCierreYape: physicalYape,
-            diferenciaArqueo: diferencia,
+            montoCierreYape: physicalYape_DB,
+            diferenciaArqueo: diferencia_DB,
             justificacionArqueo: justificacionArqueo ? justificacionArqueo.trim() : null,
             estado: "SOLICITADO_CIERRE",
             fechaCierre: hoy
@@ -271,12 +316,12 @@ export async function POST(request: NextRequest) {
                 <p style="margin: 4px 0;"><strong>ID de Sesión:</strong> ${updated.id}</p>
                 <p style="margin: 4px 0;"><strong>Fondo Inicial Apertura:</strong> S/ ${Number(session.montoApertura).toFixed(2)}</p>
                 <p style="margin: 4px 0;"><strong>Cobros en Efectivo:</strong> S/ ${expectedEfectivoAccum.toFixed(2)}</p>
-                <p style="margin: 4px 0;"><strong>Cobros en YAPE:</strong> S/ ${expectedYapeAccum.toFixed(2)}</p>
+                <p style="margin: 4px 0;"><strong>Cobros en YAPE:</strong> S/ ${(expectedYapeAccum * 60).toFixed(2)}</p>
                 <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 10px 0;" />
                 <p style="margin: 4px 0;"><strong>Efectivo Declarado Físico:</strong> S/ ${physicalEfectivo.toFixed(2)}</p>
-                <p style="margin: 4px 0;"><strong>Yape Declarado Físico:</strong> S/ ${physicalYape.toFixed(2)}</p>
-                <p style="margin: 6px 0; font-size: 16px; font-weight: bold; color: ${diferencia < 0 ? '#dc2626' : diferencia > 0 ? '#047857' : '#1e293b'};">
-                  Diferencia de Arqueo (Descuadre): S/ ${diferencia.toFixed(2)}
+                <p style="margin: 4px 0;"><strong>Yape Declarado Físico:</strong> S/ ${physicalYape_Frontend.toFixed(2)}</p>
+                <p style="margin: 6px 0; font-size: 16px; font-weight: bold; color: ${diferencia_Frontend < 0 ? '#dc2626' : diferencia_Frontend > 0 ? '#047857' : '#1e293b'};">
+                  Diferencia de Arqueo (Descuadre): S/ ${diferencia_Frontend.toFixed(2)}
                 </p>
                 ${justificacionArqueo ? `<p style="margin: 6px 0; background-color: #fffbe6; border: 1px solid #fde68a; padding: 10px; border-radius: 6px; font-style: italic; color: #78350f;"><strong>Justificación del Descuadre:</strong> "${justificacionArqueo}"</p>` : ""}
               </div>
@@ -288,9 +333,9 @@ export async function POST(request: NextRequest) {
           `;
 
           void enviarCorreo({
-            to: "admin@demo.pe",
-            subject: `🚨 ALERTA DE ARQUEO: Solicitud de Cierre de Caja por ${dbUser.nombre} (${diferencia < 0 ? 'DESCUADRE NEGATIVO' : diferencia > 0 ? 'DESCUADRE POSITIVO' : 'CUADRE OK'})`,
-            text: `El cajero ${dbUser.nombre} solicita cierre de caja. Diferencia: S/ ${diferencia.toFixed(2)}. ${justificacionArqueo ? `Justificación: ${justificacionArqueo}` : ''}`,
+            to: "alexpsm2005@gmail.com",
+            subject: `🚨 ALERTA DE ARQUEO: Solicitud de Cierre de Caja por ${dbUser.nombre} (${diferencia_Frontend < 0 ? 'DESCUADRE NEGATIVO' : diferencia_Frontend > 0 ? 'DESCUADRE POSITIVO' : 'CUADRE OK'})`,
+            text: `El cajero ${dbUser.nombre} solicita cierre de caja. Diferencia: S/ ${diferencia_Frontend.toFixed(2)}. ${justificacionArqueo ? `Justificación: ${justificacionArqueo}` : ''}`,
             html: mensajeHtml
           });
         } catch (mailError) {
@@ -333,15 +378,22 @@ export async function POST(request: NextRequest) {
 
         // Calcular saldo actual de tesorería MPT (igual que en el GET)
         const allSessions = await prisma.cajaSession.findMany({
-          where: { estado: "CERRADA" },
-          select: { montoCierreEfectivo: true }
+          select: { montoApertura: true, montoCierreEfectivo: true, estado: true }
         });
-        const depositos = await prisma.depositoMunicipal.findMany({
-          select: { monto: true }
+        const totalDepositosDB = await prisma.depositoMunicipal.aggregate({
+          _sum: { monto: true }
         });
-        const totalDepositos = depositos.reduce((acc: number, d: any) => acc + Number(d.monto || 0), 0);
-        const totalCierres = allSessions.reduce((acc: number, s: any) => acc + Number(s.montoCierreEfectivo || 0), 0);
-        const efectivoBoveda = Math.round((totalDepositos + totalCierres) * 100) / 100;
+        const totalDepositos = Number(totalDepositosDB._sum.monto || 0);
+
+        const totalAperturas = allSessions.reduce((acc: number, s: any) => acc + Number(s.montoApertura || 0), 0);
+        const totalCierres = allSessions.reduce((acc: number, s: any) => {
+          if (s.estado === "CERRADA") {
+            return acc + Number(s.montoCierreEfectivo || 0);
+          }
+          return acc;
+        }, 0);
+
+        const efectivoBoveda = Math.round((totalDepositos - totalAperturas + totalCierres) * 100) / 100;
 
         if (montoSolicitado > efectivoBoveda) {
           return NextResponse.json({

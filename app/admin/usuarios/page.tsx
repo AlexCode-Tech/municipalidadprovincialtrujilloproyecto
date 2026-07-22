@@ -362,29 +362,10 @@ export default function AdminUsuariosPage() {
 
             <div>
               <label className="text-sm font-semibold block mb-2">Rol Asignado</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRol("CAJERO")}
-                  className={`h-11 rounded-xl text-xs font-bold border transition ${
-                    rol === "CAJERO"
-                      ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
+              <div className="grid grid-cols-1">
+                <div className="flex h-11 items-center justify-center rounded-xl text-xs font-bold border bg-blue-50 border-blue-500 text-blue-700 select-none">
                   Cajero
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRol("INSPECTOR")}
-                  className={`h-11 rounded-xl text-xs font-bold border transition ${
-                    rol === "INSPECTOR"
-                      ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  Inspector Técnico
-                </button>
+                </div>
               </div>
             </div>
 
@@ -447,30 +428,9 @@ export default function AdminUsuariosPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">Rol Asignado *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditRol("CAJERO")}
-                    className={`h-9 rounded-xl text-xs font-bold border transition ${
-                      editRol === "CAJERO"
-                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Cajero
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditRol("INSPECTOR")}
-                    className={`h-9 rounded-xl text-xs font-bold border transition ${
-                      editRol === "INSPECTOR"
-                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Inspector Técnico
-                  </button>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">Rol Asignado</label>
+                <div className="flex h-10 items-center justify-center rounded-xl text-xs font-bold border bg-blue-50 border-blue-500 text-blue-700 select-none">
+                  {editRol === "CAJERO" ? "Cajero" : "Inspector Técnico"}
                 </div>
               </div>
 

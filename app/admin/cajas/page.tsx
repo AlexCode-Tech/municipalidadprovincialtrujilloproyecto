@@ -92,7 +92,7 @@ export default function AdminCajasPage() {
   const [depositos, setDepositos] = useState<DepositoDirecto[]>([]);
   const [cajerosList, setCajerosList] = useState<CajeroInfo[]>([]);
 
-  // Modal de DepÃ³sito Directo MPT
+  // Modal de Depósito Directo MPT
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositMonto, setDepositMonto] = useState("");
   const [depositConcepto, setDepositConcepto] = useState("");
@@ -140,7 +140,7 @@ export default function AdminCajasPage() {
     }
   };
 
-  // Polling automÃ¡tico cada 2 segundos para sincronizar en tiempo real con las acciones del cajero
+  // Polling automático cada 2 segundos para sincronizar en tiempo real con las acciones del cajero
   useEffect(() => {
     void cargarCajas(true);
     const interval = setInterval(() => {
@@ -165,7 +165,7 @@ export default function AdminCajasPage() {
         if (!res.ok) {
           setErrorMsg(body.error ?? "No se pudo aprobar el cierre de caja.");
         } else {
-          setSuccessMsg("Cierre de caja verificado y transferido con Ã©xito a la TesorerÃ­a de la MPT.");
+          setSuccessMsg("Cierre de caja verificado y transferido con éxito a la Tesorería de la MPT.");
           setSelectedSession(null);
           void cargarCajas(false);
         }
@@ -183,11 +183,11 @@ export default function AdminCajasPage() {
 
     const val = parseFloat(depositMonto);
     if (isNaN(val) || val <= 0) {
-      setDepositError("Ingresa un monto vÃ¡lido mayor a 0.");
+      setDepositError("Ingresa un monto válido mayor a 0.");
       return;
     }
     if (!depositConcepto.trim()) {
-      setDepositError("El concepto del depÃ³sito es obligatorio.");
+      setDepositError("El concepto del depósito es obligatorio.");
       return;
     }
 
@@ -205,9 +205,9 @@ export default function AdminCajasPage() {
         });
         const body = await res.json();
         if (!res.ok) {
-          setDepositError(body.error ?? "No se pudo registrar el depÃ³sito.");
+          setDepositError(body.error ?? "No se pudo registrar el depósito.");
         } else {
-          setSuccessMsg(`DepÃ³sito de S/ ${val.toFixed(2)} ingresado correctamente a la TesorerÃ­a MPT.`);
+          setSuccessMsg(`Depósito de S/ ${val.toFixed(2)} ingresado correctamente a la Tesorería MPT.`);
           setShowDepositModal(false);
           setDepositMonto("");
           setDepositConcepto("");
@@ -215,7 +215,7 @@ export default function AdminCajasPage() {
           void cargarCajas(false);
         }
       } catch (err) {
-        setDepositError("Error de red al registrar el depÃ³sito.");
+        setDepositError("Error de red al registrar el depósito.");
       }
     });
   };
@@ -228,7 +228,7 @@ export default function AdminCajasPage() {
 
     const val = parseFloat(openCajaMontoApertura);
     if (isNaN(val) || val < 0) {
-      setOpenCajaError("Ingresa un monto de apertura vÃ¡lido (puede ser 0).");
+      setOpenCajaError("Ingresa un monto de apertura válido (puede ser 0).");
       return;
     }
     if (!openCajaCajeroId) {
@@ -267,8 +267,8 @@ export default function AdminCajasPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeading
-        title="SupervisiÃ³n y Arqueo de Cajas"
-        description="AuditorÃ­a detallada de saldos, arqueos fÃ­sicos, cuadres y aprobaciÃ³n de turnos de cajeros."
+        title="Supervisión y Arqueo de Cajas"
+        description="Auditoría detallada de saldos, arqueos físicos, cuadres y aprobación de turnos de cajeros."
       />
 
       {/* TARJETAS DE FONDOS Y TESORERÃA MPT */}
@@ -281,7 +281,7 @@ export default function AdminCajasPage() {
               Municipalidad Provincial de Trujillo
             </span>
             <span className="rounded-full bg-blue-500/20 border border-blue-400/30 px-2 py-0.5 text-[10px] font-bold text-blue-200">
-              TesorerÃ­a MPT
+              Tesorería MPT
             </span>
           </div>
 
@@ -296,7 +296,7 @@ export default function AdminCajasPage() {
 
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-blue-800/60 pt-3 text-xs">
             <div>
-              <p className="text-[11px] text-blue-300">BÃ³veda Efectivo:</p>
+              <p className="text-[11px] text-blue-300">Bóveda Efectivo:</p>
               <p className="font-bold text-white">S/ {tesoreria.efectivoBoveda.toFixed(2)}</p>
             </div>
             <div>
@@ -319,7 +319,7 @@ export default function AdminCajasPage() {
           </div>
         </div>
 
-        {/* Card 2: Dinero en PosesiÃ³n de Cajeros (Turnos Activos) */}
+        {/* Card 2: Dinero en Posesión de Cajeros (Turnos Activos) */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
@@ -360,10 +360,10 @@ export default function AdminCajasPage() {
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                 <Coins size={15} className="text-emerald-600" />
-                RecaudaciÃ³n Total Sincronizada
+                Recaudación Total Sincronizada
               </span>
               <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                âœ“ Sincronizado
+                ✓ Sincronizado
               </span>
             </div>
 
@@ -372,14 +372,14 @@ export default function AdminCajasPage() {
                 S/ {(tesoreria.total + dineroCajeros.total).toFixed(2)}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Suma total acumulada entre TesorerÃ­a MPT y Cajeros
+                Suma total acumulada entre Tesorería MPT y Cajeros
               </p>
             </div>
           </div>
 
           <div className="mt-4 border-t border-slate-100 pt-3 text-xs flex items-center justify-between text-slate-500">
             <span>Transferencias por cierre:</span>
-            <span className="font-bold text-slate-800">AutomÃ¡ticas</span>
+            <span className="font-bold text-slate-800">Automáticas</span>
           </div>
         </div>
       </div>
@@ -399,7 +399,7 @@ export default function AdminCajasPage() {
 
       {/* PANEL DE ESTADO EN TIEMPO REAL POR CAJERO */}
       {(() => {
-        // Agrupar por cajero: mostrar la sesiÃ³n mÃ¡s reciente de cada cajero que estÃ¡ ABIERTA o SOLICITADO_CIERRE
+        // Agrupar por cajero: mostrar la sesión más reciente de cada cajero que está ABIERTA o SOLICITADO_CIERRE
         const cajeroMap = new Map<string, typeof sessions[0]>();
         sessions.forEach(s => {
           const key = s.cajero.email;
@@ -420,7 +420,7 @@ export default function AdminCajasPage() {
           <div className="mb-6 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm space-y-4">
             <h3 className="text-base font-bold text-[var(--navy)] border-b border-[var(--border)] pb-3 flex items-center gap-2">
               <Wallet size={18} className="text-[var(--blue)]" />
-              Estado de Cajas por Cajero â€” Tiempo Real
+              Estado de Cajas por Cajero — Tiempo Real
               <span className="ml-auto flex items-center gap-3">
                 <button
                   onClick={() => {
@@ -543,7 +543,7 @@ export default function AdminCajasPage() {
                       )}
                     </div>
 
-                    {/* BotÃ³n abrir caja (solo si estÃ¡ cerrada) */}
+                    {/* Botón abrir caja (solo si está cerrada) */}
                     {isCerrada && (
                       <button
                         onClick={() => {
@@ -613,7 +613,7 @@ export default function AdminCajasPage() {
                       <th className="px-4 py-3">Cajero</th>
                       <th className="px-4 py-3">Apertura</th>
                       <th className="px-4 py-3">Fondo Apertura</th>
-                      <th className="px-4 py-3">Declarado FÃ­sico</th>
+                      <th className="px-4 py-3">Declarado Físico</th>
                       <th className="px-4 py-3">Descuadre</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3 text-right">Acciones</th>
@@ -661,7 +661,7 @@ export default function AdminCajasPage() {
                                 S/ {difVal.toFixed(2)}
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">â€”</span>
+                              <span className="text-xs text-slate-400">—</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -717,13 +717,13 @@ export default function AdminCajasPage() {
           });
           sessions.forEach(s => {
             if (Number(s.montoApertura) > 0) {
-              txRows.push({ id: `asig-${s.id}`, fecha: new Date(s.fechaApertura), tipo: "ASIGNACION_CAJERO", concepto: `AsignaciÃ³n de fondo a ${s.cajero.nombre}`, actor: s.cajero.nombre, monto: Number(s.montoApertura), signo: "-" });
+              txRows.push({ id: `asig-${s.id}`, fecha: new Date(s.fechaApertura), tipo: "ASIGNACION_CAJERO", concepto: `Asignación de fondo a ${s.cajero.nombre}`, actor: s.cajero.nombre, monto: Number(s.montoApertura), signo: "-" });
             }
           });
           sessions.filter(s => s.estado === "CERRADA").forEach(s => {
             const mEff = Number(s.montoCierreEfectivo || 0);
             if (mEff > 0) {
-              txRows.push({ id: `cierre-eff-${s.id}`, fecha: s.fechaCierre ? new Date(s.fechaCierre) : new Date(s.fechaApertura), tipo: "TRANSFERENCIA_CIERRE", concepto: `Cierre aprobado â€” ${s.cajero.nombre}`, actor: s.cajero.nombre, monto: mEff, signo: "+" });
+              txRows.push({ id: `cierre-eff-${s.id}`, fecha: s.fechaCierre ? new Date(s.fechaCierre) : new Date(s.fechaApertura), tipo: "TRANSFERENCIA_CIERRE", concepto: `Cierre aprobado — ${s.cajero.nombre}`, actor: s.cajero.nombre, monto: mEff, signo: "+" });
             }
           });
           txRows.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
@@ -731,8 +731,8 @@ export default function AdminCajasPage() {
           const totalSalidas  = txRows.filter(t => t.signo === "-").reduce((s, t) => s + t.monto, 0);
           const saldoActual = totalEntradas - totalSalidas;
           const tipoConfig = {
-            DEPOSITO_DIRECTO:     { label: "DepÃ³sito Directo",       bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
-            ASIGNACION_CAJERO:    { label: "AsignaciÃ³n a Cajero",     bg: "bg-red-50 border-red-200",         text: "text-red-600",     dot: "bg-red-500" },
+            DEPOSITO_DIRECTO:     { label: "Depósito Directo",       bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
+            ASIGNACION_CAJERO:    { label: "Asignación a Cajero",     bg: "bg-red-50 border-red-200",         text: "text-red-600",     dot: "bg-red-500" },
             TRANSFERENCIA_CIERRE: { label: "Transferencia por Cierre", bg: "bg-blue-50 border-blue-200",       text: "text-blue-700",   dot: "bg-blue-500" },
             DIGITAL_YAPE:         { label: "Cobro Digital/Yape",       bg: "bg-sky-50 border-sky-200",         text: "text-sky-700",    dot: "bg-sky-500" },
           };
@@ -757,7 +757,7 @@ export default function AdminCajasPage() {
               {txRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 text-center text-slate-400">
                   <Landmark size={32} className="mb-3 text-slate-200" />
-                  <p className="text-sm font-medium">No hay transacciones registradas aÃºn.</p>
+                  <p className="text-sm font-medium">No hay transacciones registradas aún.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -817,7 +817,7 @@ export default function AdminCajasPage() {
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <DollarSign size={20} className="text-[var(--blue)]" />
-                  Arqueo de Caja â€” {selectedSession.cajero.nombre}
+                  Arqueo de Caja — {selectedSession.cajero.nombre}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
                   ID: <span className="font-semibold text-slate-700">{selectedSession.id}</span> | Apertura: {new Date(selectedSession.fechaApertura).toLocaleString("es-PE")}
@@ -882,7 +882,7 @@ export default function AdminCajasPage() {
                           S/ {descuadre.toFixed(2)}
                         </p>
                         <p className="mt-0.5 text-[11px] font-semibold">
-                          {descuadre < 0 ? "âš ï¸ Descuadre Negativo (Faltante)" : descuadre > 0 ? "Sobrante de Caja" : "âœ“ Cuadre FÃ­sico Exacto"}
+                          {descuadre < 0 ? "âš ï¸ Descuadre Negativo (Faltante)" : descuadre > 0 ? "Sobrante de Caja" : "✓ Cuadre Físico Exacto"}
                         </p>
                       </div>
                     </div>
@@ -890,7 +890,7 @@ export default function AdminCajasPage() {
                     {/* Comparativa Declarado vs Esperado */}
                     <div className="rounded-xl border border-slate-200 bg-[#f8fafc] p-4 text-xs space-y-2.5">
                       <p className="font-bold text-slate-800 border-b border-slate-200 pb-2">
-                        Resumen Comparativo de AuditorÃ­a
+                        Resumen Comparativo de Auditoría
                       </p>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -901,19 +901,19 @@ export default function AdminCajasPage() {
                         </div>
                         <div>
                           <p className="text-slate-500 font-semibold mb-1">Monto Declarado por Cajero:</p>
-                          <p className="text-slate-700">Efectivo FÃ­sico: <strong>S/ {declaradoEfectivo.toFixed(2)}</strong></p>
-                          <p className="text-slate-700">Yape FÃ­sico: <strong>S/ {declaradoYape.toFixed(2)}</strong></p>
+                          <p className="text-slate-700">Efectivo Físico: <strong>S/ {declaradoEfectivo.toFixed(2)}</strong></p>
+                          <p className="text-slate-700">Yape Físico: <strong>S/ {declaradoYape.toFixed(2)}</strong></p>
                           <p className="text-slate-900 font-bold mt-1">Total Declarado: S/ {declaradoTotal.toFixed(2)}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* JustificaciÃ³n del Descuadre si existe */}
+                    {/* Justificación del Descuadre si existe */}
                     {selectedSession.justificacionArqueo && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs space-y-1 text-amber-900">
                         <p className="font-bold flex items-center gap-1.5 text-amber-950">
                           <AlertCircle size={15} className="text-amber-600" />
-                          JustificaciÃ³n del Descuadre presentada por el cajero:
+                          Justificación del Descuadre presentada por el cajero:
                         </p>
                         <p className="italic font-medium leading-relaxed bg-white/80 p-2.5 rounded-lg border border-amber-200 mt-1.5 text-amber-950">
                           "{selectedSession.justificacionArqueo}"
@@ -936,9 +936,9 @@ export default function AdminCajasPage() {
                             <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
                               <tr>
                                 <th className="px-3 py-2.5">Factura / Boleta</th>
-                                <th className="px-3 py-2.5">TrÃ¡mite</th>
+                                <th className="px-3 py-2.5">Trámite</th>
                                 <th className="px-3 py-2.5">Contribuyente</th>
-                                <th className="px-3 py-2.5">MÃ©todo</th>
+                                <th className="px-3 py-2.5">Método</th>
                                 <th className="px-3 py-2.5 text-right">Monto</th>
                               </tr>
                             </thead>
@@ -946,7 +946,7 @@ export default function AdminCajasPage() {
                               {selectedSession.pagos.map((p) => (
                                 <tr key={p.id} className="hover:bg-slate-50">
                                   <td className="px-3 py-2 font-mono font-bold text-slate-800">
-                                    {p.numeroFactura || "â€”"}
+                                    {p.numeroFactura || "—"}
                                   </td>
                                   <td className="px-3 py-2 font-mono text-slate-600">
                                     {p.tramite.codigo}
@@ -996,14 +996,14 @@ export default function AdminCajasPage() {
         </div>
       )}
 
-      {/* Historial de Ingresos Directos a TesorerÃ­a MPT */}
+      {/* Historial de Ingresos Directos a Tesorería MPT */}
       {depositos.length > 0 && (
         <div className="mt-6 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm space-y-4">
           <h3 className="text-base font-bold text-[var(--navy)] border-b border-[var(--border)] pb-3 flex items-center gap-2">
             <Landmark size={18} className="text-[var(--blue)]" />
-            Ingresos Directos de Efectivo a TesorerÃ­a MPT
+            Ingresos Directos de Efectivo a Tesorería MPT
             <span className="ml-auto text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-0.5">
-              Ãšltimos {depositos.length}
+              Últimos {depositos.length}
             </span>
           </h3>
           <div className="overflow-x-auto">
@@ -1024,7 +1024,7 @@ export default function AdminCajasPage() {
                       {new Date(d.creadoEn).toLocaleString("es-PE")}
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-800">{d.concepto}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500 font-mono">{d.referencia || "â€”"}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500 font-mono">{d.referencia || "—"}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{d.registradoPor}</td>
                     <td className="px-4 py-3 text-right">
                       <span className="font-bold text-emerald-700 text-sm">+ S/ {Number(d.monto).toFixed(2)}</span>
@@ -1045,7 +1045,7 @@ export default function AdminCajasPage() {
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Landmark size={18} className="text-blue-600" />
-                  Ingresar Efectivo a TesorerÃ­a MPT
+                  Ingresar Efectivo a Tesorería MPT
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
                   Registra un ingreso directo de efectivo a la cuenta de la Municipalidad Provincial de Trujillo.
@@ -1083,19 +1083,19 @@ export default function AdminCajasPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Concepto del DepÃ³sito *</label>
+                <label className="block text-xs font-bold text-slate-700">Concepto del Depósito *</label>
                 <input
                   type="text"
                   value={depositConcepto}
                   onChange={(e) => setDepositConcepto(e.target.value)}
                   className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs font-semibold text-slate-900 outline-none focus:border-blue-600"
-                  placeholder="Ej: RecaudaciÃ³n turno maÃ±ana, ingreso fondo bÃ³veda..."
+                  placeholder="Ej: Recaudación turno mañana, ingreso fondo bóveda..."
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">NÂ° Documento / Referencia (Opcional)</label>
+                <label className="block text-xs font-bold text-slate-700">N° Documento / Referencia (Opcional)</label>
                 <input
                   type="text"
                   value={depositReferencia}
@@ -1140,7 +1140,7 @@ export default function AdminCajasPage() {
                     Abrir Caja con Fondo de Apertura
                   </h3>
                   <p className="mt-1 text-xs text-slate-500">
-                    El cajero seleccionado podrÃ¡ empezar a cobrar inmediatamente con el fondo que establezcas.
+                    El cajero seleccionado podrá empezar a cobrar inmediatamente con el fondo que establezcas.
                   </p>
                 </div>
                 <button
@@ -1155,7 +1155,7 @@ export default function AdminCajasPage() {
               <div className={`rounded-xl border p-3 flex items-center justify-between text-xs ${excedeSaldo ? "border-red-300 bg-red-50" : "border-emerald-200 bg-emerald-50"}`}>
                 <span className={`font-semibold flex items-center gap-1.5 ${excedeSaldo ? "text-red-700" : "text-emerald-700"}`}>
                   <Landmark size={13} />
-                  BÃ³veda Efectivo MPT disponible:
+                  Bóveda Efectivo MPT disponible:
                 </span>
                 <span className={`font-black text-sm ${excedeSaldo ? "text-red-700" : "text-emerald-800"}`}>
                   S/ {tesoreria.efectivoBoveda.toFixed(2)}
@@ -1178,14 +1178,14 @@ export default function AdminCajasPage() {
                     className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-900 bg-white outline-none focus:border-blue-600 cursor-pointer"
                     required
                   >
-                    <option value="">â€” Selecciona un cajero â€”</option>
+                    <option value="">— Selecciona un cajero —</option>
                     {cajerosList.map(c => {
                       const tieneSessionActiva = sessions.some(
                         s => s.cajero.email === c.email && (s.estado === "ABIERTA" || s.estado === "SOLICITADO_CIERRE")
                       );
                       return (
                         <option key={c.id} value={c.id} disabled={tieneSessionActiva}>
-                          {c.nombre} ({c.email}){tieneSessionActiva ? " â€” Ya tiene caja activa" : ""}
+                          {c.nombre} ({c.email}){tieneSessionActiva ? " — Ya tiene caja activa" : ""}
                         </option>
                       );
                     })}
@@ -1218,16 +1218,16 @@ export default function AdminCajasPage() {
                   {excedeSaldo ? (
                     <p className="text-[11px] text-red-600 font-semibold mt-1 flex items-center gap-1">
                       <AlertCircle size={11} />
-                      Excede el saldo disponible en la BÃ³veda MPT (S/ {tesoreria.efectivoBoveda.toFixed(2)})
+                      Excede el saldo disponible en la Bóveda MPT (S/ {tesoreria.efectivoBoveda.toFixed(2)})
                     </p>
                   ) : (
                     <p className="text-[11px] text-slate-500 mt-1">
-                      MÃ¡ximo disponible: <strong className="text-slate-700">S/ {tesoreria.efectivoBoveda.toFixed(2)}</strong>. Puede ser S/ 0.00.
+                      Máximo disponible: <strong className="text-slate-700">S/ {tesoreria.efectivoBoveda.toFixed(2)}</strong>. Puede ser S/ 0.00.
                     </p>
                   )}
                 </div>
 
-                {/* Presets rÃ¡pidos de monto */}
+                {/* Presets rápidos de monto */}
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 mb-2">Montos frecuentes:</p>
                   <div className="flex flex-wrap gap-2">

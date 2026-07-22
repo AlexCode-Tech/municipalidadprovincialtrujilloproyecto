@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { canAccessTramite, forbidden, requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
+import { getSystemDate } from "@/lib/system-date";
 
 export const runtime = "nodejs";
 
@@ -215,7 +216,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
   });
   if (!tramite?.licencia) return NextResponse.json({ error: "Licencia no disponible" }, { status: 404 });
 
-  const vencida = tramite.licencia.venceEn < new Date() || tramite.estado === "VENCIDO";
+  const hoy = await getSystemDate();
+  const vencida = tramite.licencia.venceEn < hoy || tramite.estado === "VENCIDO";
   const buffer = await renderPdf({
     numero: tramite.licencia.numero,
     razonSocial: tramite.negocio.razonSocial,

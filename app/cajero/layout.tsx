@@ -7,7 +7,7 @@ export default async function CajeroLayout({ children }: { children: React.React
   const session = await auth();
   if (!session || session.user.rol !== "CAJERO") redirect("/");
 
-  if (session.user.email && session.user.email !== "admin@demo.pe") {
+  if (session.user.email && session.user.email !== "alexpsm2005@gmail.com") {
     const usuario = await getPrisma().usuario.findFirst({
       where: { OR: [{ email: session.user.email }, { id: session.user.id }] },
       select: { estado: true }

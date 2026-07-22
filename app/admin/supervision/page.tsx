@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeading } from "@/components/layout/DashboardShell";
-import { AlertCircle, Calendar, Clock, Coins, CreditCard, DollarSign, FileText, LoaderCircle, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AlertCircle, Calendar, Clock, Coins, CreditCard, DollarSign, FileText, LoaderCircle, ShieldAlert, ShieldCheck, Printer, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getSystemDateClient } from "@/lib/system-date-client";
 
@@ -22,6 +22,7 @@ type Pago = {
     negocio: {
       razonSocial: string;
       ruc: string;
+      domicilioFiscal?: string | null;
     };
   };
 };
@@ -52,6 +53,7 @@ export default function AdminSupervisionPage() {
   const [inspecciones, setInspecciones] = useState<Inspeccion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroInspecciones, setFiltroInspecciones] = useState<"TODAS" | "PASADAS" | "FUTURAS">("TODAS");
+  const [selectedPagoForInvoice, setSelectedPagoForInvoice] = useState<Pago | null>(null);
 
   const cargarDatos = async () => {
     try {
@@ -155,10 +157,13 @@ export default function AdminSupervisionPage() {
                       </td>
                       <td className="px-4 py-3 font-semibold text-xs text-slate-700">
                         {p.numeroFactura ? (
-                          <span className="flex items-center gap-1">
+                          <button
+                            onClick={() => setSelectedPagoForInvoice(p)}
+                            className="flex items-center gap-1 hover:text-blue-600 font-bold transition text-left cursor-pointer"
+                          >
                             <FileText size={12} className="text-slate-400" />
                             {p.tipoComprobante}: {p.numeroFactura}
-                          </span>
+                          </button>
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
@@ -285,6 +290,140 @@ export default function AdminSupervisionPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal Visor de Factura para Administrador */}
+      {selectedPagoForInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl animate-in fade-in zoom-in-95 duration-200 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <style>{`
+              @media print {
+                body * {
+                  visibility: hidden;
+                }
+                #factura-modal-imprimible, #factura-modal-imprimible * {
+                  visibility: visible;
+                }
+                #factura-modal-imprimible {
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                  border: none !important;
+                  box-shadow: none !important;
+                  margin: 0 !important;
+                  padding: 20px !important;
+                }
+              }
+            `}</style>
+
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <FileText size={16} className="text-blue-600" />
+                Visor de Comprobante de Pago
+              </h3>
+              <button
+                onClick={() => setSelectedPagoForInvoice(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              <div id="factura-modal-imprimible" className="border-2 border-black p-6 font-mono text-xs text-black space-y-4 bg-white">
+                {/* Header */}
+                <div className="text-center space-y-1">
+                  <h2 className="text-sm font-black uppercase tracking-wider">MUNICIPALIDAD PROVINCIAL DE TRUJILLO</h2>
+                  <p className="text-[10px] text-slate-700">RUC: 20175638381 | Jr. Almagro N° 412, Trujillo</p>
+                  <p className="text-[10px] text-slate-500 font-bold">SUBGERENCIA DE LICENCIAS Y COMERCIALIZACIÓN</p>
+                </div>
+
+                <hr className="border-t-2 border-black my-2" />
+
+                {/* Doc Title and Number */}
+                <div className="flex justify-between items-center text-xs font-bold bg-slate-50 p-2.5 border border-black">
+                  <span className="uppercase">{selectedPagoForInvoice.tipoComprobante === "BOLETA" ? "Boleta de Venta" : "Factura Electrónica"}</span>
+                  <span>N° {selectedPagoForInvoice.numeroFactura}</span>
+                </div>
+
+                {/* Client / Business Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px] leading-relaxed pt-1">
+                  <div>
+                    <p><strong>Razón Social:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.razonSocial}</span></p>
+                    <p className="mt-1"><strong>RUC:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.ruc}</span></p>
+                    <p className="mt-1"><strong>Dirección:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.domicilioFiscal || "—"}</span></p>
+                  </div>
+                  <div>
+                    <p><strong>Fecha Pago:</strong> <span className="font-normal">{new Date(selectedPagoForInvoice.fechaPago).toLocaleDateString("es-PE")}</span></p>
+                    <p className="mt-1"><strong>Método Pago:</strong> <span className="font-normal">{selectedPagoForInvoice.metodo}</span></p>
+                    <p className="mt-1"><strong>Código Trámite:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.codigo}</span></p>
+                  </div>
+                </div>
+
+                <hr className="border-t border-dashed border-black my-2" />
+
+                {/* Items Table */}
+                <div className="space-y-1">
+                  <table className="w-full text-left text-[10px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-black font-bold">
+                        <th className="py-1">Cant.</th>
+                        <th className="py-1">Código</th>
+                        <th className="py-1">Descripción</th>
+                        <th className="py-1 text-right">P. Unit.</th>
+                        <th className="py-1 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-medium">
+                      <tr>
+                        <td className="py-1.5">1</td>
+                        <td className="py-1.5 font-mono">SERV-001</td>
+                        <td className="py-1.5">Derecho de Trámite Licencia de Funcionamiento (Trujillo)</td>
+                        <td className="py-1.5 text-right">180.00</td>
+                        <td className="py-1.5 text-right font-bold">180.00</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Total Box */}
+                <div className="flex justify-end pt-2 border-t border-black">
+                  <div className="border-2 border-black bg-slate-50 px-4 py-1.5 flex items-center gap-6 font-bold text-xs">
+                    <span>IMPORTE TOTAL:</span>
+                    <span className="font-black text-sm">S/ 180.00</span>
+                  </div>
+                </div>
+
+                {/* Amount in words */}
+                <div className="border border-black p-2 text-center font-bold text-[10px] uppercase tracking-wide">
+                  SON: CIENTO OCHENTA CON 00/100 SOLES
+                </div>
+
+                {/* Footer breakdown */}
+                <div className="text-right text-[9px] text-slate-600 font-mono pt-1">
+                  Op. Gravada: S/ 152.54 | IGV (18%): S/ 27.46 | Hash: {(selectedPagoForInvoice.id || "78F29A9A").slice(-8).toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-slate-200 pt-3 flex gap-3">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition"
+              >
+                <Printer size={14} />
+                Imprimir Comprobante
+              </button>
+              <button
+                onClick={() => setSelectedPagoForInvoice(null)}
+                className="flex-1 flex h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white transition"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

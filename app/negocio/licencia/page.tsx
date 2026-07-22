@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Download, FileCheck2, ShieldCheck, AlertCircle, Clock, FileX2, ArrowRight, Search, AlertTriangle } from "lucide-react";
 import { PageHeading } from "@/components/layout/DashboardShell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { getSystemDateClient } from "@/lib/system-date-client";
 
 type Licencia = {
   id: string;
@@ -136,7 +137,7 @@ export default function LicenciaPage() {
   }
 
   const tieneLicencia = tramite && tramite.licencia;
-  const estaVencida = tieneLicencia && (tramite.estado === "VENCIDO" || new Date(tramite.licencia!.venceEn) < new Date());
+  const estaVencida = tieneLicencia && (tramite.estado === "VENCIDO" || new Date(tramite.licencia!.venceEn) < getSystemDateClient());
 
   return (
     <div className="mx-auto max-w-5xl">

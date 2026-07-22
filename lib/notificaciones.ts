@@ -148,9 +148,9 @@ export async function notificarInspeccionesHoy(): Promise<{
     const negocio = inspeccion.tramite.negocio;
     const emailNegocio = obtenerEmailReal(negocio.usuario?.email);
     const celularNegocio = negocio.telefono || "987654321";
-    const hora = new Date(inspeccion.fechaProgramada).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+    const fechaHoy = new Date(inspeccion.fechaProgramada).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });
 
-    const txtNegocio = `Estimado(a) representante de ${negocio.razonSocial}, le informamos que hoy se realizará la inspección técnica de seguridad para su local en ${negocio.domicilioFiscal}. Código de Trámite: ${inspeccion.tramite.codigo}. Hora: ${hora}. Visita ${inspeccion.numeroVisita} de 2. Por favor asegúrese de que el establecimiento se encuentre abierto.`;
+    const txtNegocio = `Estimado(a) representante de ${negocio.razonSocial}, le informamos que el día de hoy (${fechaHoy}) se realizará la inspección técnica de seguridad para su local en ${negocio.domicilioFiscal}. Código de Trámite: ${inspeccion.tramite.codigo}. Visita ${inspeccion.numeroVisita} de 2. Por favor asegúrese de que el establecimiento se encuentre abierto durante la jornada del día.`;
 
     const htmlNegocio = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #cbd5e1; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
@@ -162,15 +162,15 @@ export async function notificarInspeccionesHoy(): Promise<{
           <p style="margin: 4px 0;"><strong>Código Trámite:</strong> ${inspeccion.tramite.codigo}</p>
           <p style="margin: 4px 0;"><strong>Dirección del Local:</strong> ${negocio.domicilioFiscal}</p>
           <p style="margin: 4px 0;"><strong>Distrito:</strong> ${negocio.distrito}</p>
-          <p style="margin: 4px 0;"><strong>Hora Aprox:</strong> ${hora}</p>
+          <p style="margin: 4px 0;"><strong>Fecha de Inspección:</strong> ${fechaHoy}</p>
           <p style="margin: 4px 0;"><strong>Número de Visita:</strong> Visita ${inspeccion.numeroVisita} de 2</p>
         </div>
-        <p style="font-size: 13px; color: #475569;">Por favor, asegúrese de que el local se encuentre abierto y que la persona responsable o documentación requerida esté disponible.</p>
+        <p style="font-size: 13px; color: #475569;">Por favor, asegúrese de que el local se encuentre abierto durante todo el día y que la persona responsable o documentación requerida esté disponible.</p>
         <p style="margin-top: 20px; font-size: 12px; color: #64748b; text-align: center;">Subgerencia de Licencias y Comercialización - MPT</p>
       </div>
     `;
 
-    const smsNegocio = `MPT Negocio: Hoy tienes 1 inspección técnica programada para tu local ${negocio.razonSocial} (${inspeccion.tramite.codigo}). Ten el local listo a las ${hora}.`;
+    const smsNegocio = `MPT Negocio: Hoy (${fechaHoy}) tienes 1 inspección técnica programada para tu local ${negocio.razonSocial} (${inspeccion.tramite.codigo}). Mantén el local abierto durante la jornada.`;
 
     // Enviar Correo al Negocio
     try {
@@ -436,12 +436,8 @@ export async function notificarObservacionNegocio(
         month: "long",
         year: "numeric"
       });
-      const horaFormateada = fechaSegundaVisita.toLocaleTimeString("es-PE", {
-        hour: "2-digit",
-        minute: "2-digit"
-      });
 
-      const txtGmail = `Estimado(a) representante de ${negocio.razonSocial},\n\nLe informamos que su trámite de Licencia de Funcionamiento (${tramite.codigo}) fue OBSERVADO en la Visita N° 1.\n\nObservaciones registradas por el inspector:\n"${observaciones}"\n\nSe ha reprogramado su Visita N° 2 para dentro de 30 días hábiles, programada para el día ${fechaFormateada} a las ${horaFormateada}.\nPor favor subsane las observaciones antes de la fecha programada.`;
+      const txtGmail = `Estimado(a) representante de ${negocio.razonSocial},\n\nLe informamos que su trámite de Licencia de Funcionamiento (${tramite.codigo}) fue OBSERVADO en la Visita N° 1.\n\nObservaciones registradas por el inspector:\n"${observaciones}"\n\nSe ha reprogramado su Visita N° 2 para dentro de 30 días hábiles, programada para el día ${fechaFormateada}.\nPor favor subsane las observaciones antes de la fecha programada.`;
 
       const htmlGmail = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #cbd5e1; padding: 25px; border-radius: 12px;">
@@ -455,7 +451,7 @@ export async function notificarObservacionNegocio(
           </div>
           <p>Su <strong>Visita N° 2 (Subsanación)</strong> ha sido reprogramada automáticamente para dentro de 30 días hábiles:</p>
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-weight: bold; color: #1e293b;">
-            📅 Fecha reprogramada: ${fechaFormateada} a las ${horaFormateada}
+            📅 Fecha reprogramada: ${fechaFormateada}
           </div>
           <p style="margin-top: 20px; font-size: 12px; color: #64748b; text-align: center;">Subgerencia de Licencias y Comercialización - MPT</p>
         </div>

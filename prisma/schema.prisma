@@ -225,3 +225,4 @@ model DepositoMunicipal {
   registradoPor String
   creadoEn      DateTime @default(now())
 }
+

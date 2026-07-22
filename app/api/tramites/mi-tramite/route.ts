@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
+import { getSystemDate } from "@/lib/system-date";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -87,10 +88,11 @@ export async function GET(request: NextRequest) {
 
   // Si el trámite está APROBADO pero no tenía registro de Licencia creado, lo generamos automáticamente
   if (tramite.estado === "APROBADO" && !tramite.licencia) {
-    const anoActual = new Date().getFullYear();
+    const simulatedNow = await getSystemDate();
+    const anoActual = simulatedNow.getFullYear();
     const contadorLicencias = (await prisma.licencia.count()) + 1;
     const numeroLicencia = `LF-MPT-${anoActual}-${String(contadorLicencias).padStart(6, "0")}`;
-    const emitidaEn = new Date();
+    const emitidaEn = simulatedNow;
     const venceEn = new Date(emitidaEn.getFullYear() + 1, emitidaEn.getMonth(), emitidaEn.getDate());
 
     const nuevaLicencia = await prisma.licencia.create({

@@ -258,8 +258,7 @@ export default function EstadoPage() {
   let fechaInspeccionTexto = "Pendiente";
   if (fechaProximaObj) {
     const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
-    const hora = fechaProximaObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-    fechaInspeccionTexto = `${fechaProximaObj.toLocaleDateString("es-PE", options)} · ${hora}`;
+    fechaInspeccionTexto = fechaProximaObj.toLocaleDateString("es-PE", options);
   }
 
   const timeline = [
@@ -386,14 +385,9 @@ export default function EstadoPage() {
             </div>
             
             {fechaProximaObj ? (
-              <>
-                <p className="mt-5 text-3xl font-bold tracking-[-.03em]">
-                  {fechaProximaObj.toLocaleDateString("es-PE", { day: "numeric", month: "long" })}
-                </p>
-                <p className="mt-1 text-sm font-medium">
-                  {fechaProximaObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </>
+              <p className="mt-5 text-3xl font-bold tracking-[-.03em]">
+                {fechaProximaObj.toLocaleDateString("es-PE", { day: "numeric", month: "long" })}
+              </p>
             ) : (
               <p className="mt-5 text-sm text-[var(--muted)]">Por programar tras confirmación de pago.</p>
             )}

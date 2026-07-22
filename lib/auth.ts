@@ -13,7 +13,7 @@ const credentialsSchema = z.object({
 });
 
 const demoUsers: Record<Rol, { id: string; name: string; email: string; password: string }> = {
-  ADMIN: { id: "demo-admin", name: "Administrador Único", email: "admin@demo.pe", password: "demo123" },
+  ADMIN: { id: "demo-admin", name: "Administrador Único", email: "alexpsm2005@gmail.com", password: "demo123" },
   NEGOCIO: { id: "demo-negocio", name: "Bodega Primavera", email: "negocio@demo.pe", password: "demo123" },
   CAJERO: { id: "demo-cajero", name: "María Torres", email: "cajero@demo.pe", password: "demo123" },
   INSPECTOR: { id: "demo-inspector", name: "Carlos Mendoza", email: "inspector@demo.pe", password: "demo123" },

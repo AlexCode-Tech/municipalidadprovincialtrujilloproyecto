@@ -10,6 +10,7 @@ import { z } from "zod";
 import { apiError } from "@/lib/api";
 import { forbidden, requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
+import { scaleUpPago } from "@/lib/registrar-pago";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -52,7 +53,12 @@ export async function GET(request: NextRequest) {
     include: { negocio: true, pagos: true, inspecciones: true }
   });
 
-  return NextResponse.json(tramites, {
+  const scaledTramites = tramites.map(t => ({
+    ...t,
+    pagos: (t.pagos || []).map(scaleUpPago)
+  }));
+
+  return NextResponse.json(scaledTramites, {
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       "Pragma": "no-cache",
@@ -110,19 +116,33 @@ export async function POST(request: NextRequest) {
 
     // 2. Actualizar email del usuario si se incluyó en el formulario
     if (emailFormulario) {
-      try {
-        const usuarioExistente = await getPrisma().usuario.findUnique({
-          where: { email: emailFormulario },
-          include: { negocio: true }
-        });
+      const emailLower = emailFormulario.trim().toLowerCase();
+      const usuarioExistente = await getPrisma().usuario.findFirst({
+        where: {
+          OR: [
+            { email: { equals: emailLower, mode: "insensitive" } },
+            { email: { equals: `${emailLower}@licencias.pe`, mode: "insensitive" } }
+          ]
+        }
+      });
 
-        if (usuarioExistente && usuarioExistente.id !== dbUsuarioId) {
+      if (usuarioExistente) {
+        if (usuarioExistente.rol === "ADMIN" || usuarioExistente.rol === "CAJERO" || usuarioExistente.rol === "INSPECTOR") {
+          return NextResponse.json(
+            { error: `El correo electrónico ${emailFormulario} está reservado para el personal de la municipalidad y no puede usarse para registrar un trámite.` },
+            { status: 400 }
+          );
+        }
+
+        if (usuarioExistente.id !== dbUsuarioId) {
           await getPrisma().usuario.update({
             where: { id: usuarioExistente.id },
             data: { email: `liberado-${usuarioExistente.id}@licencias.pe` }
           });
         }
+      }
 
+      try {
         await getPrisma().usuario.update({
           where: { id: dbUsuarioId },
           data: { email: emailFormulario }
@@ -243,18 +263,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Generar código de trámite
+    // 4. Generar código provisional de solicitud
     const count = await getPrisma().tramite.count();
-    const codigo = `MPT-${new Date().getFullYear()}-${String(count + 1).padStart(6, "0")}`;
+    const codigo = `SOL-${new Date().getFullYear()}-${String(count + 1).padStart(6, "0")}`;
 
     // 5. Crear el trámite en la BD
+    const isRenovacion = body.tipoTramite === "RENOVACION";
+    const poseeCambiosEstructura = body.poseeCambiosEstructura === true;
+    const confirmacionSinCambios = body.confirmacionSinCambios === true;
+
     const tramite = await getPrisma().tramite.create({
       data: {
         negocioId,
         planoUrl: typeof body.planoUrl === "string" ? body.planoUrl : undefined,
-        planoValidado: true,
+        planoValidado: isRenovacion && confirmacionSinCambios ? true : (body.planoValidado === true),
         codigo,
         cajeroId,
+        tipoTramite: (body.tipoTramite as string) || "INICIAL",
+        esRenovacion: isRenovacion,
+        poseeCambiosEstructura,
+        confirmacionSinCambios,
       },
     });
 

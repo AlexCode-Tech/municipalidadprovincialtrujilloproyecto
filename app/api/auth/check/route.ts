@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Cuentas administradoras siempre permanecen activas
-  if (session.user.rol === "ADMIN" || session.user.email === "admin@demo.pe" || session.user.id === "demo-admin") {
+  if (session.user.rol === "ADMIN" || session.user.email === "alexpsm2005@gmail.com" || session.user.id === "demo-admin") {
     return NextResponse.json(
       { active: true, user: session.user },
       { headers: noCacheHeaders }

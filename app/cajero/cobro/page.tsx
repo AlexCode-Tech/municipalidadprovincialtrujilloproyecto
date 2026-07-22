@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeading } from "@/components/layout/DashboardShell";
 import { AlertCircle, ArrowLeft, CheckCircle2, Coins, CreditCard, DollarSign, FileText, LoaderCircle, Printer, Store, User } from "lucide-react";
+import { CajaCerradaBlock } from "@/components/caja/CajaCerradaBlock";
 
 type Tramite = {
   id: string;
@@ -24,6 +25,8 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
 
   const [tramite, setTramite] = useState<Tramite | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cajaAbierta, setCajaAbierta] = useState<boolean | null>(null);
+  const [cajaLoading, setCajaLoading] = useState(true);
   
   const [metodo, setMetodo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("180.00");
@@ -58,6 +61,28 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
 
     void cargarTramite();
   }, [tramiteId]);
+
+  useEffect(() => {
+    async function checkCaja() {
+      try {
+        const res = await fetch(`/api/cajas?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCajaAbierta(data?.session?.estado === "ABIERTA");
+        } else {
+          setCajaAbierta(false);
+        }
+      } catch (err) {
+        setCajaAbierta(false);
+      } finally {
+        setCajaLoading(false);
+      }
+    }
+    void checkCaja();
+  }, []);
 
   useEffect(() => {
     if (metodo === "EFECTIVO") {
@@ -137,20 +162,28 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
     });
   };
 
+  if (loading || cajaLoading) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center gap-3">
+        <LoaderCircle className="animate-spin text-[var(--blue)]" size={36} />
+        <p className="text-sm font-semibold text-slate-500">Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!successData && !cajaAbierta) {
+    return (
+      <div className="mx-auto max-w-4xl pt-10">
+        <CajaCerradaBlock accion="procesar el cobro de esta licencia" />
+      </div>
+    );
+  }
+
   if (!tramiteId) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-800">
         <AlertCircle className="mx-auto text-red-500 mb-3" size={32} />
         <p className="font-bold">Error: Parámetro tramiteId requerido en la URL.</p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-96 flex-col items-center justify-center gap-3">
-        <LoaderCircle className="animate-spin text-[var(--blue)]" size={36} />
-        <p className="text-sm font-semibold text-slate-500">Cargando datos del trámite...</p>
       </div>
     );
   }
@@ -448,6 +481,29 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
                 <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 flex items-center justify-between text-sm">
                   <span className="text-slate-500">Monto total a cobrar:</span>
                   <span className="font-black text-slate-800 text-lg">S/ 180.00</span>
+                </div>
+              )}
+
+              {(metodo === "YAPE" || (metodo === "MIXTO" && parseFloat(montoYape || "0") > 0)) && (
+                <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50/50 to-white p-4 text-center space-y-3 shadow-inner">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-blue-800">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                    Escanea para Pagar con YAPE
+                  </div>
+                  <div className="relative mx-auto w-60 h-auto overflow-hidden rounded-2xl border-4 border-white bg-white p-2 shadow-md">
+                    <img
+                      src="/qr-yape.jpg"
+                      alt="Código QR Yape MPT"
+                      className="w-full h-auto rounded-lg"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-500 font-medium">Beneficiario:</p>
+                    <p className="text-xs font-black text-slate-800">Alex Paul Silvestre Miguel</p>
+                    <p className="text-[11px] font-bold text-blue-700 bg-blue-100/60 inline-block px-3 py-0.5 rounded-full mt-1">
+                      Monto: S/ {metodo === "YAPE" ? "180.00" : parseFloat(montoYape || "0").toFixed(2)}
+                    </p>
+                  </div>
                 </div>
               )}
 
