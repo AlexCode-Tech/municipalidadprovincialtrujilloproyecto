@@ -55,6 +55,7 @@ enum EstadoCaja {
   SOLICITADO_CIERRE
   CERRADA
   SOLICITADO_APERTURA
+  SOLICITADO_SENCILLO
 }
 
 model Usuario {
@@ -159,6 +160,12 @@ model CajaSession {
   montoCierreYape     Decimal?    @db.Decimal(10, 2)
   diferenciaArqueo    Decimal?    @db.Decimal(10, 2)
   justificacionArqueo String?     @db.Text
+  
+  // Campos para Solicitud de Sencillo / Fondo Adicional
+  montoSolicitadoSencillo Decimal?  @db.Decimal(10, 2)
+  estadoSencillo          String?   // PENDIENTE, APROBADO, RECHAZADO
+  motivoSencillo          String?
+
   estado              EstadoCaja  @default(ABIERTA)
   fechaApertura       DateTime    @default(now())
   fechaCierre         DateTime?

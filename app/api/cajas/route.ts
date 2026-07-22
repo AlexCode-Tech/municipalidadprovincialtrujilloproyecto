@@ -243,6 +243,71 @@ export async function POST(request: NextRequest) {
 
       const { action } = body;
 
+      if (action === "SOLICITAR_SENCILLO") {
+        const { montoSencillo, motivo, cajeroId } = body;
+        const targetCajeroId = cajeroId || dbUser.id;
+
+        let session = await prisma.cajaSession.findFirst({
+          where: {
+            cajeroId: targetCajeroId,
+            estado: { in: ["ABIERTA", "SOLICITADO_APERTURA", "SOLICITADO_SENCILLO"] }
+          }
+        });
+
+        if (!session) {
+          const cajeroActivo = await prisma.usuario.findFirst({
+            where: { rol: "CAJERO", estado: "ACTIVO" }
+          });
+          if (cajeroActivo) {
+            session = await prisma.cajaSession.create({
+              data: {
+                cajeroId: cajeroActivo.id,
+                montoApertura: 100,
+                estado: "SOLICITADO_SENCILLO",
+                montoSolicitadoSencillo: Number(montoSencillo),
+                estadoSencillo: "PENDIENTE",
+                motivoSencillo: motivo || "Solicitud de sencillo para entregar vuelto",
+                fechaApertura: hoy
+              }
+            });
+          } else {
+            return NextResponse.json({ error: "No hay ningún cajero activo registrado para asociar la solicitud de sencillo." }, { status: 400, headers: noCacheHeaders });
+          }
+        } else {
+          session = await prisma.cajaSession.update({
+            where: { id: session.id },
+            data: {
+              estado: "SOLICITADO_SENCILLO",
+              montoSolicitadoSencillo: Number(montoSencillo),
+              estadoSencillo: "PENDIENTE",
+              motivoSencillo: motivo || "Solicitud de sencillo para entregar vuelto"
+            }
+          });
+        }
+
+        // Notificar por correo al Administrador MPT
+        try {
+          void enviarCorreo({
+            to: "alexpsm2005@gmail.com",
+            subject: `🔔 SOLICITUD DE SENCILLO MPT: Requerimiento de S/ ${Number(montoSencillo).toFixed(2)}`,
+            text: `Se solicita S/ ${Number(montoSencillo).toFixed(2)} de sencillo adicional desde Bóveda MPT para entregar vuelto.`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #d97706; margin-top: 0;">🔔 Solicitud de Sencillo / Fondo Adicional MPT</h2>
+                <p>Se ha generado una solicitud de sencillo por el monto de <strong>S/ ${Number(montoSencillo).toFixed(2)}</strong> para poder cubrir la entrega de vuelto en caja.</p>
+                <p style="font-size: 13px; color: #475569;">
+                  Ingrese a <strong>/admin/cajas</strong> para aprobar la transferencia de dinero desde Tesorería Bóveda MPT.
+                </p>
+              </div>
+            `
+          });
+        } catch (mailErr) {
+          console.warn("Error notificando solicitud de sencillo:", mailErr);
+        }
+
+        return NextResponse.json({ success: true, session, message: "Solicitud de sencillo enviada a la Administración MPT." }, { headers: noCacheHeaders });
+      }
+
       if (action === "REQUEST_OPEN") {
         // Verificar si el cajero ya tiene una caja abierta, solicitado cierre o solicitado apertura
         const sesionExistente = await prisma.cajaSession.findFirst({
@@ -527,6 +592,51 @@ export async function POST(request: NextRequest) {
         });
 
         return NextResponse.json({ success: true, session: updated }, { headers: noCacheHeaders });
+      }
+
+      if (action === "APROBAR_SENCILLO") {
+        if (!sessionId) {
+          return NextResponse.json({ error: "ID de sesión requerido" }, { status: 400, headers: noCacheHeaders });
+        }
+        const session = await prisma.cajaSession.findUnique({ where: { id: sessionId } });
+        if (!session) {
+          return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404, headers: noCacheHeaders });
+        }
+
+        const montoSencillo = Number(session.montoSolicitadoSencillo || 0);
+
+        const updated = await prisma.cajaSession.update({
+          where: { id: sessionId },
+          data: {
+            montoApertura: Number(session.montoApertura) + montoSencillo,
+            estado: "ABIERTA",
+            estadoSencillo: "APROBADO",
+            montoSolicitadoSencillo: null
+          }
+        });
+
+        return NextResponse.json({ success: true, session: updated, message: `Sencillo de S/ ${montoSencillo.toFixed(2)} asignado exitosamente.` }, { headers: noCacheHeaders });
+      }
+
+      if (action === "RECHAZAR_SENCILLO") {
+        if (!sessionId) {
+          return NextResponse.json({ error: "ID de sesión requerido" }, { status: 400, headers: noCacheHeaders });
+        }
+        const session = await prisma.cajaSession.findUnique({ where: { id: sessionId } });
+        if (!session) {
+          return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404, headers: noCacheHeaders });
+        }
+
+        const updated = await prisma.cajaSession.update({
+          where: { id: sessionId },
+          data: {
+            estado: "ABIERTA",
+            estadoSencillo: "RECHAZADO",
+            montoSolicitadoSencillo: null
+          }
+        });
+
+        return NextResponse.json({ success: true, session: updated, message: "Solicitud de sencillo rechazada." }, { headers: noCacheHeaders });
       }
 
       return NextResponse.json({ error: "Acción no válida para Administrador" }, { status: 400, headers: noCacheHeaders });

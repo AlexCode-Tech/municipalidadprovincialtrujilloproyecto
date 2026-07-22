@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { PageHeading } from "@/components/layout/DashboardShell";
-import { AlertCircle, ArrowUpRight, Building2, CheckCircle2, Clock, Coins, CreditCard, DollarSign, Eye, Landmark, LoaderCircle, Plus, ShieldCheck, Store, Wallet, X } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Building2, Check, CheckCircle2, Clock, Coins, CreditCard, DollarSign, Eye, Landmark, LoaderCircle, Plus, ShieldCheck, Store, Wallet, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type Pago = {
@@ -279,6 +279,48 @@ export default function AdminCajasPage() {
     });
   };
 
+  const handleAprobarSencillo = (sessionId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/cajas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "APROBAR_SENCILLO", sessionId }),
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          setErrorMsg(body.error ?? "No se pudo aprobar la solicitud de sencillo.");
+        } else {
+          setSuccessMsg(body.message ?? "Solicitud de sencillo aprobada con éxito.");
+          void cargarCajas(false);
+        }
+      } catch (err) {
+        setErrorMsg("Error de conexión al aprobar el sencillo.");
+      }
+    });
+  };
+
+  const handleRechazarSencillo = (sessionId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/cajas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "RECHAZAR_SENCILLO", sessionId }),
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          setErrorMsg(body.error ?? "No se pudo rechazar la solicitud.");
+        } else {
+          setSuccessMsg("Solicitud de sencillo rechazada.");
+          void cargarCajas(false);
+        }
+      } catch (err) {
+        setErrorMsg("Error de conexión al rechazar.");
+      }
+    });
+  };
+
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeading
@@ -411,6 +453,49 @@ export default function AdminCajasPage() {
           <p className="font-medium">{successMsg}</p>
         </div>
       )}
+
+      {/* NOTIFICACIONES EN TIEMPO REAL DE SOLICITUDES DE SENCILLO / FONDO ADICIONAL */}
+      {sessions.filter(s => (s as any).estadoSencillo === "PENDIENTE" || (s.estado as string) === "SOLICITADO_SENCILLO").map(req => (
+        <div key={`sencillo-${req.id}`} className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 p-5 shadow-md animate-in fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber-600 text-white shadow-md">
+              <Coins size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-amber-100 border border-amber-200 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-amber-800 animate-pulse">
+                  🔔 Solicitud de Sencillo Pendiente
+                </span>
+              </div>
+              <h4 className="mt-1 text-base font-bold text-slate-900">
+                El cajero(a) <strong className="text-amber-900">{req.cajero.nombre}</strong> solicita <strong>S/ {Number((req as any).montoSolicitadoSencillo || 0).toFixed(2)}</strong> de sencillo de Tesorería MPT
+              </h4>
+              <p className="text-xs text-slate-600">
+                {(req as any).motivoSencillo || "Solicitud de dinero adicional desde Bóveda MPT para entregar vuelto."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleAprobarSencillo(req.id)}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+            >
+              <Check size={16} />
+              Aprobar y Transferir Sencillo
+            </button>
+            <button
+              onClick={() => handleRechazarSencillo(req.id)}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 px-3 py-2.5 text-xs font-bold text-red-700 transition disabled:opacity-50"
+            >
+              <X size={16} />
+              Rechazar
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* NOTIFICACIONES EN TIEMPO REAL DE SOLICITUDES DE APERTURA DE CAJA */}
       {sessions.filter(s => (s.estado as string) === "SOLICITADO_APERTURA").map(req => (

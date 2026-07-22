@@ -5,7 +5,7 @@ export const fetchCache = "force-no-store";
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { LoaderCircle, ShieldCheck, ArrowRight, ExternalLink, HelpCircle, AlertCircle, Play, CreditCard, QrCode, Split, X, Check } from "lucide-react";
+import { LoaderCircle, ShieldCheck, ArrowRight, ExternalLink, HelpCircle, AlertCircle, Play, CreditCard, QrCode, Split, X, Check, Coins } from "lucide-react";
 
 function PagoContent() {
   const searchParams = useSearchParams();
@@ -27,6 +27,12 @@ function PagoContent() {
   const [vueltoEfectivoCustom, setVueltoEfectivoCustom] = useState("0.00");
   const [vueltoYapeCustom, setVueltoYapeCustom] = useState("0.00");
 
+  // Estado de caja y solicitud de sencillo
+  const [saldoDisponibleEnCaja, setSaldoDisponibleEnCaja] = useState<number>(100.00);
+  const [solicitandoSencillo, setSolicitandoSencillo] = useState(false);
+  const [sencilloEnviado, setSencilloEnviado] = useState(false);
+  const [estadoSencilloStatus, setEstadoSencilloStatus] = useState<string | null>(null);
+
   const handleDecimalInput = (val: string): string => {
     if (!val) return "";
     const sanitized = val.replace(",", ".");
@@ -43,6 +49,14 @@ function PagoContent() {
   const totalEntregado = montoTarjetaVal + montoYapeVal;
   const vueltoCalculadoTotal = Math.max(0, Math.round((totalEntregado - 180.00) * 100) / 100);
 
+  let vueltoEfectivoCalculado = 0;
+  if (vueltoCalculadoTotal > 0) {
+    if (vueltoModo === "EFECTIVO") vueltoEfectivoCalculado = vueltoCalculadoTotal;
+    else if (vueltoModo === "YAPE") vueltoEfectivoCalculado = 0;
+    else vueltoEfectivoCalculado = parseFloat(vueltoEfectivoCustom) || 0;
+  }
+
+  // Cargar saldo de caja y verificar estado en tiempo real
   useEffect(() => {
     if (!tramiteId) return;
 
@@ -54,13 +68,25 @@ function PagoContent() {
           const tData = await checkRes.json();
           const tienePago = (tData.pagos || []).some((p: any) => p.estado === "APPROVED");
           if (tienePago || (tData.estado && tData.estado !== "PAGO_PENDIENTE" && tData.estado !== "BORRADOR" && tData.estado !== "PENDIENTE_PAGO")) {
-            // Ya está pagado -> Reemplazar ruta para no permitir volver atrás ni repagar
             router.replace(`/negocio/pago/resultado?tramiteId=${tramiteId}&estado=aprobado`);
             return;
           }
         }
 
-        // 2. Obtener preferencia de Mercado Pago
+        // 2. Cargar dinero disponible en caja activa o Tesorería MPT
+        const cajaRes = await fetch(`/api/cajas?t=${Date.now()}`, { cache: "no-store" }).catch(() => null);
+        if (cajaRes && cajaRes.ok) {
+          const cData = await cajaRes.json();
+          if (cData.session) {
+            const expEff = cData.expected?.efectivo || Number(cData.session.montoApertura || 100);
+            setSaldoDisponibleEnCaja(Math.max(100, expEff));
+            if (cData.session.estadoSencillo) {
+              setEstadoSencilloStatus(cData.session.estadoSencillo);
+            }
+          }
+        }
+
+        // 3. Obtener preferencia de Mercado Pago
         const res = await fetch("/api/pagos/preferencia", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -83,6 +109,67 @@ function PagoContent() {
 
     void verificarYObtenerPreferencia();
   }, [tramiteId, router]);
+
+  // Polling para verificar si el Administrador aprobó o rechazó la solicitud de sencillo
+  useEffect(() => {
+    if (!sencilloEnviado) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/cajas?t=${Date.now()}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.session) {
+            const status = data.session.estadoSencillo;
+            if (status === "APROBADO") {
+              setEstadoSencilloStatus("APROBADO");
+              setSaldoDisponibleEnCaja(prev => prev + 500); // Incrementar saldo de caja disponible
+              setSencilloEnviado(false);
+              clearInterval(interval);
+            } else if (status === "RECHAZADO") {
+              setEstadoSencilloStatus("RECHAZADO");
+              setSencilloEnviado(false);
+              clearInterval(interval);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error polling sencillo status:", e);
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [sencilloEnviado]);
+
+  const handlePedirSencillo = async () => {
+    setSolicitandoSencillo(true);
+    setError(null);
+    const montoSencillo = Math.max(50, vueltoEfectivoCalculado - saldoDisponibleEnCaja + 50);
+
+    try {
+      const res = await fetch("/api/cajas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SOLICITAR_SENCILLO",
+          montoSencillo,
+          motivo: `Solicitud de sencillo para entregar vuelto de S/ ${vueltoCalculadoTotal.toFixed(2)}`
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "No se pudo solicitar sencillo a la administración.");
+      }
+
+      setSencilloEnviado(true);
+      setEstadoSencilloStatus("PENDIENTE");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al solicitar sencillo.");
+    } finally {
+      setSolicitandoSencillo(false);
+    }
+  };
 
   const handleEjecutarSimulacion = async () => {
     setSimulando(true);
@@ -505,6 +592,54 @@ function PagoContent() {
                         </div>
                       </div>
                     )}
+
+                    {/* VALIDACIÓN DE SALDO EN CAJA DE TRUJILLO & BOTÓN DE PEDIR SENCILLO */}
+                    {vueltoEfectivoCalculado > saldoDisponibleEnCaja && (
+                      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-3 animate-in fade-in">
+                        <div className="flex items-start gap-2 text-amber-900">
+                          <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
+                          <div className="text-xs">
+                            <p className="font-bold">Saldo Insuficiente en Caja de Trujillo</p>
+                            <p className="mt-0.5">
+                              El vuelto en efectivo a entregar (<strong>S/ {vueltoEfectivoCalculado.toFixed(2)}</strong>) supera el dinero actual disponible en caja (<strong>S/ {saldoDisponibleEnCaja.toFixed(2)}</strong>).
+                            </p>
+                          </div>
+                        </div>
+
+                        {sencilloEnviado ? (
+                          <div className="rounded-xl bg-amber-100 p-3 text-center border border-amber-300 animate-pulse">
+                            <p className="text-xs font-extrabold text-amber-900 flex items-center justify-center gap-1.5">
+                              <LoaderCircle size={16} className="animate-spin text-amber-700" />
+                              ⌛ Solicitud de Sencillo Enviada
+                            </p>
+                            <p className="text-[11px] text-amber-800 mt-1">
+                              En espera de aprobación por el Administrador MPT para transferir dinero desde Tesorería.
+                            </p>
+                          </div>
+                        ) : estadoSencilloStatus === "RECHAZADO" ? (
+                          <div className="rounded-xl bg-red-100 p-2.5 text-xs font-bold text-red-800 text-center">
+                            ❌ Solicitud de Sencillo Rechazada por el Administrador. Ajusta los montos.
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handlePedirSencillo}
+                            disabled={solicitandoSencillo}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+                          >
+                            <Coins size={16} />
+                            {solicitandoSencillo ? "Enviando Solicitud..." : "🙋‍♂️ Pedir Sencillo a la Municipalidad Provincial de Trujillo"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {estadoSencilloStatus === "APROBADO" && (
+                      <div className="rounded-xl border border-emerald-300 bg-emerald-100 p-3 text-xs font-bold text-emerald-900 flex items-center gap-2 animate-in fade-in">
+                        <Check size={18} className="text-emerald-700 shrink-0" />
+                        ✅ ¡Solicitud de sencillo APROBADA por el Administrador MPT! La caja ha sido recargada.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -522,7 +657,7 @@ function PagoContent() {
               <button
                 type="button"
                 onClick={handleEjecutarSimulacion}
-                disabled={simulando || (metodoSimulacion === "MIXTO" && totalEntregado < 179.99)}
+                disabled={simulando || (metodoSimulacion === "MIXTO" && (totalEntregado < 179.99 || vueltoEfectivoCalculado > saldoDisponibleEnCaja))}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
               >
                 {simulando ? (
