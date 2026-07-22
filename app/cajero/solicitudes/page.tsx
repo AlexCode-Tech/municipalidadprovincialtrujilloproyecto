@@ -107,10 +107,8 @@ export default function SolicitudesPage() {
   };
 
   const tramitesFiltrados = tramites.filter((t) => {
-    // Filtrar por pestaña activa
-    const pending = isPendingState(t.estado);
-    if (pestana === "PENDIENTES" && !pending) return false;
-    if (pestana === "PROCESADOS" && pending) return false;
+    // Excluir solicitudes pendientes / sin pagar
+    if (isPendingState(t.estado)) return false;
 
     // Filtrar por texto de búsqueda
     if (!busqueda) return true;
@@ -135,8 +133,8 @@ export default function SolicitudesPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeading
-        title="Solicitudes"
-        description="Revisa y gestiona en tiempo real los trámites registrados en la plataforma."
+        title="Solicitudes Procesadas"
+        description="Revisa y gestiona en tiempo real los trámites pagados y aprobados en la plataforma."
         action={
           cajaAbierta ? (
             <div className="relative w-full max-w-xs">
@@ -159,41 +157,16 @@ export default function SolicitudesPage() {
         </div>
       ) : (
         <>
-          {/* Selector de pestañas */}
-          <div className="mb-6 flex border-b border-[var(--border)]">
-            <button
-              onClick={() => setPestana("PENDIENTES")}
-              className={`px-5 py-3 text-sm font-bold border-b-2 transition ${
-                pestana === "PENDIENTES"
-                  ? "border-[var(--blue)] text-[var(--blue)]"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Por Cobrar (Pendientes)
-            </button>
-            <button
-              onClick={() => setPestana("PROCESADOS")}
-              className={`px-5 py-3 text-sm font-bold border-b-2 transition ${
-                pestana === "PROCESADOS"
-                  ? "border-[var(--blue)] text-[var(--blue)]"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Procesados (Pagados & Aprobados)
-            </button>
-          </div>
 
           <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
             {tramitesFiltrados.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <FileText className="text-slate-300 mb-3" size={42} />
-                <h3 className="font-bold text-slate-700">No hay solicitudes</h3>
+                <h3 className="font-bold text-slate-700">No hay solicitudes procesadas</h3>
                 <p className="mt-1 text-xs text-[var(--muted)] max-w-sm">
                   {busqueda
                     ? "No se encontraron coincidencias para la búsqueda."
-                    : pestana === "PENDIENTES"
-                    ? "No hay trámites en espera de cobro presencial en este momento."
-                    : "Aún no hay trámites pagados o aprobados en la base de datos."}
+                    : "Aún no hay trámites pagados o aprobados registrados."}
                 </p>
               </div>
             ) : (
@@ -207,7 +180,6 @@ export default function SolicitudesPage() {
                       <th className="px-5 py-4 font-semibold">Distrito</th>
                       <th className="px-5 py-4 font-semibold">Estado</th>
                       <th className="px-5 py-4 font-semibold">Fecha Registro</th>
-                      {pestana === "PENDIENTES" && <th className="px-5 py-4 font-semibold text-right">Acción</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)] text-sm">
@@ -231,17 +203,6 @@ export default function SolicitudesPage() {
                             minute: "2-digit",
                           })}
                         </td>
-                        {pestana === "PENDIENTES" && (
-                          <td className="px-5 py-4 text-right">
-                            <Link
-                              href={`/cajero/cobro?tramiteId=${t.id}`}
-                              className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition"
-                            >
-                              <Banknote size={13} />
-                              Cobrar
-                            </Link>
-                          </td>
-                        )}
                       </tr>
                     ))}
                   </tbody>

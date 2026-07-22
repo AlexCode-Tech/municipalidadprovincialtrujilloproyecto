@@ -49,11 +49,26 @@ export async function GET(request: NextRequest) {
 
   const prisma = getPrisma();
 
-  // Migrar cualquier trámite histórico en BORRADOR a PAGO_PENDIENTE en la BD
-  await prisma.tramite.updateMany({
-    where: { estado: "BORRADOR" },
-    data: { estado: "PAGO_PENDIENTE" }
-  }).catch(() => {});
+  // Eliminar automáticamente trámites no pagados (BORRADOR o PAGO_PENDIENTE sin pagos aprobados)
+  const sinPago = await prisma.tramite.findMany({
+    where: {
+      OR: [
+        { estado: "BORRADOR" },
+        { estado: "PAGO_PENDIENTE" },
+        { codigo: "SOL-2026-000001" }
+      ],
+      pagos: { none: { estado: "APPROVED" } }
+    },
+    select: { id: true }
+  }).catch(() => []);
+
+  if (sinPago.length > 0) {
+    const ids = sinPago.map(t => t.id);
+    await prisma.inspeccion.deleteMany({ where: { tramiteId: { in: ids } } }).catch(() => {});
+    await prisma.pago.deleteMany({ where: { tramiteId: { in: ids } } }).catch(() => {});
+    await prisma.licencia.deleteMany({ where: { tramiteId: { in: ids } } }).catch(() => {});
+    await prisma.tramite.deleteMany({ where: { id: { in: ids } } }).catch(() => {});
+  }
 
   const tramites = await prisma.tramite.findMany({
     take: 100,
