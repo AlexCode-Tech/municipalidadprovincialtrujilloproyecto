@@ -227,7 +227,18 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
     }
 
     const pago = tramite.pagos[0];
-    const metodoPago = pago ? (pago.metodo === "YAPE" ? "Yape" : "Tarjeta") : "Yape";
+    let metodoPago = "Tarjeta de Débito / Crédito";
+    if (pago) {
+      if (pago.metodo === "YAPE") {
+        metodoPago = "Yape / BCP QR";
+      } else if (pago.metodo === "MIXTO") {
+        const tarjeta = Number(pago.montoEfectivo || 0);
+        const yape = Number(pago.montoYape || 0);
+        metodoPago = `Pago Mixto (Tarjeta: S/ ${tarjeta.toFixed(2)} | Yape: S/ ${yape.toFixed(2)})`;
+      } else {
+        metodoPago = "Tarjeta de Débito / Crédito";
+      }
+    }
     const fechaPago = pago ? new Date(pago.creadoEn) : new Date();
     const fechaFormateada = fechaPago.toISOString().split("T")[0];
 

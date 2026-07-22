@@ -8,10 +8,15 @@ export async function POST(request: NextRequest) {
     const access = await requireRole(request, "NEGOCIO", "CAJERO");
     if (access.error) return access.error;
 
-    const { tramiteId } = await request.json();
+    const body = await request.json();
+    const { tramiteId } = body;
     if (!tramiteId) {
       return NextResponse.json({ error: "Parámetro tramiteId requerido" }, { status: 400 });
     }
+
+    const metodoInput: "TARJETA" | "YAPE" | "MIXTO" = body.metodo || "TARJETA";
+    const montoTarjetaInput = parseFloat(body.montoTarjeta) || 0;
+    const montoYapeInput = parseFloat(body.montoYape) || 0;
 
     const prisma = getPrisma();
 
@@ -21,12 +26,23 @@ export async function POST(request: NextRequest) {
       include: {
         negocio: {
           include: { usuario: true }
+        },
+        pagos: {
+          where: { estado: "APPROVED" }
         }
       }
     });
 
     if (!tramite) {
       return NextResponse.json({ error: "Trámite no encontrado" }, { status: 404 });
+    }
+
+    // Verificar si ya fue pagado
+    if (tramite.pagos.length > 0 || (tramite.estado !== "PAGO_PENDIENTE" && tramite.estado !== "BORRADOR" && tramite.estado !== "PENDIENTE_PAGO")) {
+      return NextResponse.json(
+        { error: "Este trámite ya cuenta con un pago registrado y aprobado previamente." },
+        { status: 400 }
+      );
     }
 
     // 2. Buscar un inspector válido para programar la inspección
@@ -41,14 +57,34 @@ export async function POST(request: NextRequest) {
 
     // 3. Procesar simulación de pago en una transacción
     await prisma.$transaction(async (tx) => {
+      let montoEfectivo = 0;
+      let montoYape = 0;
+      let detalle = "";
+
+      if (metodoInput === "MIXTO") {
+        montoEfectivo = montoTarjetaInput || 100;
+        montoYape = montoYapeInput || 80;
+        detalle = `Pago simulado Mixto (Tarjeta: S/ ${montoEfectivo.toFixed(2)} | Yape: S/ ${montoYape.toFixed(2)})`;
+      } else if (metodoInput === "YAPE") {
+        montoYape = 180.00;
+        montoEfectivo = 0;
+        detalle = "Pago simulado con Yape / BCP QR";
+      } else {
+        montoEfectivo = 180.00;
+        montoYape = 0;
+        detalle = "Pago simulado con Tarjeta de Débito / Crédito";
+      }
+
       // Registrar el pago simulado
       await tx.pago.create({
         data: {
           tramiteId,
           monto: 180.00,
-          metodo: "TARJETA",
+          metodo: metodoInput,
+          montoEfectivo,
+          montoYape,
           estado: "APPROVED",
-          detalleEstado: "Pago simulado por el usuario en desarrollo",
+          detalleEstado: detalle,
           mercadoPagoId: `sim-${Date.now()}`
         }
       });
