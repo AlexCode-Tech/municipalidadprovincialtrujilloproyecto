@@ -13,6 +13,9 @@ export async function registrarPagoAprobado({
   metodo,
   montoEfectivo,
   montoYape,
+  vueltoTotal = 0,
+  vueltoEfectivo = 0,
+  vueltoYape = 0,
   cajaSessionId,
   mercadoPagoId,
   tipoComprobante = "FACTURA"
@@ -21,6 +24,9 @@ export async function registrarPagoAprobado({
   metodo: "EFECTIVO" | "YAPE" | "MIXTO" | "TARJETA";
   montoEfectivo: number;
   montoYape: number;
+  vueltoTotal?: number;
+  vueltoEfectivo?: number;
+  vueltoYape?: number;
   cajaSessionId?: string;
   mercadoPagoId?: string;
   tipoComprobante?: string;
@@ -57,13 +63,6 @@ export async function registrarPagoAprobado({
   // 3. Crear registro de Pago
   let finalMontoYape = Number(montoYape);
   let finalMonto = COSTO_TRAMITE;
-  if (metodo === "YAPE") {
-    finalMontoYape = 3.00;
-    finalMonto = 3.00;
-  } else if (metodo === "MIXTO" && finalMontoYape > 0) {
-    finalMontoYape = 3.00;
-    finalMonto = Number(montoEfectivo) + 3.00;
-  }
 
   const pago = await prisma.pago.create({
     data: {
@@ -76,6 +75,9 @@ export async function registrarPagoAprobado({
       montoEfectivo,
       montoYape: finalMontoYape,
       montoTarjeta: 0,
+      vueltoTotal,
+      vueltoEfectivo,
+      vueltoYape,
       tipoComprobante,
       numeroFactura,
       fechaPago: hoy,

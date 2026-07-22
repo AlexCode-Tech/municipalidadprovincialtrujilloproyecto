@@ -31,10 +31,34 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
   const [metodo, setMetodo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("180.00");
   const [montoYape, setMontoYape] = useState("0.00");
+
+  // Estado para modalidad de vuelto
+  const [vueltoModo, setVueltoModo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
+  const [vueltoEfectivoCustom, setVueltoEfectivoCustom] = useState("0.00");
+  const [vueltoYapeCustom, setVueltoYapeCustom] = useState("0.00");
+
+  // Estado de saldo en caja del cajero y solicitud de sencillo
+  const [saldoDisponibleEnCaja, setSaldoDisponibleEnCaja] = useState<number>(100.00);
+  const [solicitandoSencillo, setSolicitandoSencillo] = useState(false);
+  const [sencilloEnviado, setSencilloEnviado] = useState(false);
+  const [estadoSencilloStatus, setEstadoSencilloStatus] = useState<string | null>(null);
   
   const [errorMsg, setErrorMsg] = useState("");
   const [successData, setSuccessData] = useState<{ pagoId: string; numeroFactura: string } | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Cálculo en tiempo real de vuelto
+  const effVal = parseFloat(montoEfectivo || "0") || 0;
+  const yapVal = parseFloat(montoYape || "0") || 0;
+  const totalRecibido = Math.round((effVal + yapVal) * 100) / 100;
+  const vueltoCalculadoTotal = Math.max(0, Math.round((totalRecibido - 180.00) * 100) / 100);
+
+  let vueltoEfectivoCalculado = 0;
+  if (vueltoCalculadoTotal > 0) {
+    if (vueltoModo === "EFECTIVO") vueltoEfectivoCalculado = vueltoCalculadoTotal;
+    else if (vueltoModo === "YAPE") vueltoEfectivoCalculado = 0;
+    else vueltoEfectivoCalculado = parseFloat(vueltoEfectivoCustom) || 0;
+  }
 
   useEffect(() => {
     if (!tramiteId) return;
@@ -72,6 +96,13 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
         if (res.ok) {
           const data = await res.json();
           setCajaAbierta(data?.session?.estado === "ABIERTA");
+          if (data?.session) {
+            const expEff = data?.expected?.efectivo || Number(data?.session?.montoApertura || 100);
+            setSaldoDisponibleEnCaja(Math.max(100, expEff));
+            if (data?.session?.estadoSencillo) {
+              setEstadoSencilloStatus(data.session.estadoSencillo);
+            }
+          }
         } else {
           setCajaAbierta(false);
         }
@@ -83,6 +114,67 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
     }
     void checkCaja();
   }, []);
+
+  // Polling para verificar aprobación de sencillo por el Administrador MPT
+  useEffect(() => {
+    if (!sencilloEnviado) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/cajas?t=${Date.now()}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.session) {
+            const status = data.session.estadoSencillo;
+            if (status === "APROBADO") {
+              setEstadoSencilloStatus("APROBADO");
+              setSaldoDisponibleEnCaja(prev => prev + 500);
+              setSencilloEnviado(false);
+              clearInterval(interval);
+            } else if (status === "RECHAZADO") {
+              setEstadoSencilloStatus("RECHAZADO");
+              setSencilloEnviado(false);
+              clearInterval(interval);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error polling sencillo status:", e);
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [sencilloEnviado]);
+
+  const handlePedirSencillo = async () => {
+    setSolicitandoSencillo(true);
+    setErrorMsg("");
+    const montoSencillo = Math.max(50, vueltoEfectivoCalculado - saldoDisponibleEnCaja + 50);
+
+    try {
+      const res = await fetch("/api/cajas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SOLICITAR_SENCILLO",
+          montoSencillo,
+          motivo: `Solicitud de sencillo en caja presencial para entregar vuelto de S/ ${vueltoCalculadoTotal.toFixed(2)}`
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "No se pudo solicitar sencillo.");
+      }
+
+      setSencilloEnviado(true);
+      setEstadoSencilloStatus("PENDIENTE");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Error al solicitar sencillo.");
+    } finally {
+      setSolicitandoSencillo(false);
+    }
+  };
 
   useEffect(() => {
     if (metodo === "EFECTIVO") {
@@ -119,14 +211,40 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
     const yap = Math.round(parseFloat(montoYape || "0") * 100) / 100;
 
     if (isNaN(eff) || eff < 0 || isNaN(yap) || yap < 0) {
-      setErrorMsg("Los montos ingresados deben ser válidos y mayores a cero.");
+      setErrorMsg("Los montos ingresados deben ser válidos y mayores o iguales a cero.");
       return;
     }
 
     const suma = Math.round((eff + yap) * 100) / 100;
-    if (suma !== 180) {
-      setErrorMsg("La suma de Efectivo y YAPE debe ser exactamente S/ 180.00.");
+    if (suma < 179.99) {
+      setErrorMsg(`El total recibido (S/ ${suma.toFixed(2)}) debe ser al menos S/ 180.00.`);
       return;
+    }
+
+    let vueltoTotal = vueltoCalculadoTotal;
+    let vueltoEfectivo = 0;
+    let vueltoYape = 0;
+
+    if (vueltoTotal > 0) {
+      if (vueltoModo === "EFECTIVO") {
+        vueltoEfectivo = vueltoTotal;
+        vueltoYape = 0;
+      } else if (vueltoModo === "YAPE") {
+        vueltoYape = vueltoTotal;
+        vueltoEfectivo = 0;
+      } else {
+        vueltoEfectivo = parseFloat(vueltoEfectivoCustom) || 0;
+        vueltoYape = parseFloat(vueltoYapeCustom) || 0;
+        if (Math.abs((vueltoEfectivo + vueltoYape) - vueltoTotal) > 0.01) {
+          setErrorMsg(`En vuelto mixto, la suma de Efectivo y Yape debe coincidir exactamente con S/ ${vueltoTotal.toFixed(2)}.`);
+          return;
+        }
+      }
+
+      if (vueltoEfectivo > saldoDisponibleEnCaja) {
+        setErrorMsg(`La caja no cuenta con suficiente efectivo para entregar S/ ${vueltoEfectivo.toFixed(2)} de vuelto.`);
+        return;
+      }
     }
 
     startTransition(async () => {
@@ -139,6 +257,9 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
             metodo,
             montoEfectivo: eff,
             montoYape: yap,
+            vueltoTotal,
+            vueltoEfectivo,
+            vueltoYape,
           }),
         });
 
@@ -443,12 +564,11 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
               {metodo === "MIXTO" ? (
                 <div className="grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 border border-slate-200">
                   <label className="text-xs font-bold text-slate-600 block">
-                    Monto Efectivo (S/)
+                    Monto Recibido Efectivo (S/)
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      max="180"
                       value={montoEfectivo}
                       onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
                       onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
@@ -457,12 +577,11 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
                     />
                   </label>
                   <label className="text-xs font-bold text-slate-600 block">
-                    Monto YAPE (S/)
+                    Monto Recibido YAPE (S/)
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      max="180"
                       value={montoYape}
                       onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
                       onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
@@ -470,24 +589,198 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
                       required
                     />
                   </label>
-                  <div className="col-span-2 text-center text-xs text-slate-500 mt-1 border-t border-slate-200 pt-2">
-                    Suma total declarada:{" "}
-                    <span className="font-bold text-slate-800">
-                      S/ {(parseFloat(montoEfectivo || "0") + parseFloat(montoYape || "0")).toFixed(2)}
+                  <div className="col-span-2 text-center text-xs text-slate-500 mt-1 border-t border-slate-200 pt-2 flex items-center justify-between">
+                    <span>Total Recibido:</span>
+                    <span className="font-extrabold text-slate-800 text-sm">
+                      S/ {totalRecibido.toFixed(2)}
                     </span>
                   </div>
                 </div>
+              ) : metodo === "EFECTIVO" ? (
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
+                  <label className="text-xs font-bold text-slate-600 block">
+                    Dinero Recibido en Efectivo (S/)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="180"
+                      value={montoEfectivo}
+                      onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
+                      onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
+                      className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold outline-none focus:border-blue-500 text-slate-900"
+                      required
+                    />
+                  </label>
+                  <div className="text-right text-xs text-slate-500">
+                    Tasa oficial: <span className="font-bold text-slate-800">S/ 180.00</span>
+                  </div>
+                </div>
               ) : (
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Monto total a cobrar:</span>
-                  <span className="font-black text-slate-800 text-lg">S/ 180.00</span>
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
+                  <label className="text-xs font-bold text-slate-600 block">
+                    Monto Recibido por YAPE (S/)
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="180"
+                      value={montoYape}
+                      onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
+                      onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
+                      className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold outline-none focus:border-blue-500 text-slate-900"
+                      required
+                    />
+                  </label>
+                  <div className="text-right text-xs text-slate-500">
+                    Tasa oficial: <span className="font-bold text-slate-800">S/ 180.00</span>
+                  </div>
                 </div>
               )}
 
+              {/* SECCIÓN DE CÁLCULO DE VUELTO & VALIDACIÓN DE CAJA */}
+              {vueltoCalculadoTotal > 0 && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3.5 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
+                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                      Vuelto Total a Entregar:
+                    </span>
+                    <span className="text-base font-black text-emerald-700">
+                      S/ {vueltoCalculadoTotal.toFixed(2)}
+                    </span>
+                  </div>
 
+                  <p className="text-[11px] font-bold text-emerald-900">Modalidad de Entrega del Vuelto:</p>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setVueltoModo("EFECTIVO")}
+                      className={`rounded-xl border p-2 font-bold transition ${
+                        vueltoModo === "EFECTIVO"
+                          ? "border-emerald-600 bg-emerald-600 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      💵 Efectivo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVueltoModo("YAPE")}
+                      className={`rounded-xl border p-2 font-bold transition ${
+                        vueltoModo === "YAPE"
+                          ? "border-purple-600 bg-purple-600 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      📱 Yape
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVueltoModo("MIXTO");
+                        setVueltoEfectivoCustom((vueltoCalculadoTotal / 2).toFixed(2));
+                        setVueltoYapeCustom((vueltoCalculadoTotal / 2).toFixed(2));
+                      }}
+                      className={`rounded-xl border p-2 font-bold transition ${
+                        vueltoModo === "MIXTO"
+                          ? "border-indigo-600 bg-indigo-600 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      🔀 Mixto
+                    </button>
+                  </div>
+
+                  {vueltoModo === "MIXTO" && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Vuelto Efectivo (S/)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={vueltoEfectivoCustom}
+                          onChange={(e) => {
+                            const val = handleDecimalInput(e.target.value);
+                            setVueltoEfectivoCustom(val);
+                            const num = parseFloat(val) || 0;
+                            if (num <= vueltoCalculadoTotal) {
+                              setVueltoYapeCustom((vueltoCalculadoTotal - num).toFixed(2));
+                            }
+                          }}
+                          className="h-8 w-full rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-900 bg-white outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Vuelto Yape (S/)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={vueltoYapeCustom}
+                          onChange={(e) => {
+                            const val = handleDecimalInput(e.target.value);
+                            setVueltoYapeCustom(val);
+                            const num = parseFloat(val) || 0;
+                            if (num <= vueltoCalculadoTotal) {
+                              setVueltoEfectivoCustom((vueltoCalculadoTotal - num).toFixed(2));
+                            }
+                          }}
+                          className="h-8 w-full rounded-lg border border-slate-300 px-2 text-xs font-bold text-slate-900 bg-white outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ALERTA DE SALDO INSUFICIENTE EN CAJA DEL CAJERO & BOTÓN SENCILLO */}
+                  {vueltoEfectivoCalculado > saldoDisponibleEnCaja && (
+                    <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-3 animate-in fade-in">
+                      <div className="flex items-start gap-2 text-amber-900">
+                        <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
+                        <div className="text-xs">
+                          <p className="font-bold">Saldo Insuficiente en Caja del Cajero</p>
+                          <p className="mt-0.5">
+                            El vuelto en efectivo a entregar (<strong>S/ {vueltoEfectivoCalculado.toFixed(2)}</strong>) supera el dinero disponible en tu caja (<strong>S/ {saldoDisponibleEnCaja.toFixed(2)}</strong>).
+                          </p>
+                        </div>
+                      </div>
+
+                      {sencilloEnviado ? (
+                        <div className="rounded-xl bg-amber-100 p-3 text-center border border-amber-300 animate-pulse">
+                          <p className="text-xs font-extrabold text-amber-900 flex items-center justify-center gap-1.5">
+                            <LoaderCircle size={16} className="animate-spin text-amber-700" />
+                            ⌛ Solicitud de Sencillo Enviada
+                          </p>
+                          <p className="text-[11px] text-amber-800 mt-1">
+                            En espera de aprobación por el Administrador MPT para transferir dinero desde Tesorería.
+                          </p>
+                        </div>
+                      ) : estadoSencilloStatus === "RECHAZADO" ? (
+                        <div className="rounded-xl bg-red-100 p-2.5 text-xs font-bold text-red-800 text-center">
+                          ❌ Solicitud de Sencillo Rechazada por el Administrador. Ajusta los montos.
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handlePedirSencillo}
+                          disabled={solicitandoSencillo}
+                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+                        >
+                          <Coins size={16} />
+                          {solicitandoSencillo ? "Enviando Solicitud..." : "🙋‍♂️ Pedir Sencillo a la Municipalidad Provincial de Trujillo"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {estadoSencilloStatus === "APROBADO" && (
+                    <div className="rounded-xl border border-emerald-300 bg-emerald-100 p-3 text-xs font-bold text-emerald-900 flex items-center gap-2 animate-in fade-in">
+                      <CheckCircle2 size={18} className="text-emerald-700 shrink-0" />
+                      ✅ ¡Solicitud de sencillo APROBADA por el Administrador MPT! Tu caja ha sido recargada.
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button
-                disabled={pending}
+                disabled={pending || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
                 className="focus-ring mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-bold text-white shadow-sm transition disabled:opacity-55"
               >
                 {pending && <LoaderCircle className="animate-spin" size={16} />}

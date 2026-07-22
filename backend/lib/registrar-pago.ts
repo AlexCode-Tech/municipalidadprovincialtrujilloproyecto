@@ -13,6 +13,9 @@ export async function registrarPagoAprobado({
   metodo,
   montoEfectivo,
   montoYape,
+  vueltoTotal = 0,
+  vueltoEfectivo = 0,
+  vueltoYape = 0,
   cajaSessionId,
   mercadoPagoId,
   tipoComprobante = "FACTURA"
@@ -21,6 +24,9 @@ export async function registrarPagoAprobado({
   metodo: "EFECTIVO" | "YAPE" | "MIXTO" | "TARJETA";
   montoEfectivo: number;
   montoYape: number;
+  vueltoTotal?: number;
+  vueltoEfectivo?: number;
+  vueltoYape?: number;
   cajaSessionId?: string;
   mercadoPagoId?: string;
   tipoComprobante?: string;
@@ -39,11 +45,25 @@ export async function registrarPagoAprobado({
     }
   });
 
-  // 2. Generar número de comprobante único
+  // 2. Generar número de comprobante único y asignar código de trámite oficial MPT
   const correlativo = Math.floor(100000 + Math.random() * 900000).toString();
   const numeroFactura = `F001-${correlativo.padStart(6, "0")}`;
 
+  // 2.5 Asignar el código de trámite oficial MPT solo ahora que se confirma el pago
+  const countOficiales = await prisma.tramite.count({
+    where: { codigo: { startsWith: "MPT-" } }
+  });
+  const nuevoCodigoOficial = `MPT-${hoy.getFullYear()}-${String(countOficiales + 1).padStart(6, "0")}`;
+
+  await prisma.tramite.update({
+    where: { id: tramiteId },
+    data: { codigo: nuevoCodigoOficial }
+  });
+
   // 3. Crear registro de Pago
+  let finalMontoYape = Number(montoYape);
+  let finalMonto = COSTO_TRAMITE;
+
   const pago = await prisma.pago.create({
     data: {
       tramiteId,
@@ -51,10 +71,13 @@ export async function registrarPagoAprobado({
       mercadoPagoId: mercadoPagoId || `pres-${Date.now()}-${correlativo}`,
       estado: "APPROVED",
       metodo,
-      monto: COSTO_TRAMITE,
+      monto: finalMonto,
       montoEfectivo,
-      montoYape,
+      montoYape: finalMontoYape,
       montoTarjeta: 0,
+      vueltoTotal,
+      vueltoEfectivo,
+      vueltoYape,
       tipoComprobante,
       numeroFactura,
       fechaPago: hoy,

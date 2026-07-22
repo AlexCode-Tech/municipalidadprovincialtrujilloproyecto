@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const prisma = getPrisma();
 
   try {
-    const { tramiteId, metodo, montoEfectivo, montoYape } = await request.json();
+    const { tramiteId, metodo, montoEfectivo, montoYape, vueltoTotal, vueltoEfectivo, vueltoYape } = await request.json();
 
     if (!tramiteId || !metodo) {
       return NextResponse.json({ error: "Faltan parámetros obligatorios" }, { status: 400 });
@@ -31,9 +31,13 @@ export async function POST(request: NextRequest) {
 
     const eff = parseFloat(montoEfectivo || 0);
     const yap = parseFloat(montoYape || 0);
+    const vTot = parseFloat(vueltoTotal || 0);
+    const vEff = parseFloat(vueltoEfectivo || 0);
+    const vYap = parseFloat(vueltoYape || 0);
 
-    if (eff + yap !== COSTO_TRAMITE) {
-      return NextResponse.json({ error: `El monto total de pago debe ser exactamente S/ ${COSTO_TRAMITE}.00` }, { status: 400 });
+    const totalRecibido = Math.round((eff + yap) * 100) / 100;
+    if (totalRecibido < COSTO_TRAMITE) {
+      return NextResponse.json({ error: `El dinero recibido (S/ ${totalRecibido.toFixed(2)}) debe ser al menos el costo del trámite (S/ ${COSTO_TRAMITE}.00)` }, { status: 400 });
     }
 
     const dbUser = await resolveUsuario(prisma, user);
@@ -56,6 +60,9 @@ export async function POST(request: NextRequest) {
       metodo,
       montoEfectivo: eff,
       montoYape: yap,
+      vueltoTotal: vTot,
+      vueltoEfectivo: vEff,
+      vueltoYape: vYap,
       cajaSessionId: sessionActiva.id
     });
 
