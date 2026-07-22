@@ -12,7 +12,10 @@ type CajaSession = {
   montoCierreYape?: number | null;
   diferenciaArqueo?: number | null;
   justificacionArqueo?: string | null;
-  estado: "ABIERTA" | "SOLICITADO_CIERRE" | "CERRADA";
+  montoSolicitadoSencillo?: number | null;
+  motivoSencillo?: string | null;
+  estadoSencillo?: string | null;
+  estado: "ABIERTA" | "SOLICITADO_APERTURA" | "SOLICITADO_SENCILLO" | "SOLICITADO_CIERRE" | "CERRADA";
   fechaApertura: string;
   fechaCierre?: string | null;
 };
@@ -252,22 +255,42 @@ export default function CajeroCajaPage() {
         </div>
       )}
 
-      {/* CASO B: Caja Abierta */}
-      {session && session.estado === "ABIERTA" && (
-        <div className="grid gap-7 lg:grid-cols-3">
-          {/* Columna Izquierda: Tarjetas de Estado y Totales */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+      {/* CASO B: Caja Abierta o con Solicitud de Sencillo en Proceso */}
+      {session && (session.estado === "ABIERTA" || session.estado === "SOLICITADO_SENCILLO") && (
+        <div className="space-y-6">
+          {(session.estado === "SOLICITADO_SENCILLO" || session.estadoSencillo === "PENDIENTE") && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 flex items-center justify-between shadow-sm animate-pulse">
+              <div className="flex items-center gap-3">
+                <Clock className="text-amber-600 shrink-0" size={20} />
                 <div>
-                  <p className="text-xs text-[var(--muted)]">Sesión de Caja</p>
-                  <p className="mt-0.5 text-sm font-bold text-[var(--navy)]">ID: {session.id}</p>
+                  <p className="font-extrabold text-amber-950 text-sm">
+                    ⌛ Solicitud de Sencillo Enviada (S/ {Number(session.montoSolicitadoSencillo || 0).toFixed(2)})
+                  </p>
+                  <p className="text-amber-800 text-xs mt-0.5 font-medium">
+                    {session.motivoSencillo || "En espera de aprobación por el Administrador MPT para recargar dinero desde Tesorería."}
+                  </p>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  Abierta
-                </span>
               </div>
+              <span className="font-extrabold text-amber-800 bg-amber-200/80 px-3 py-1 rounded-full text-xs shrink-0">
+                Pendiente de Aprobación
+              </span>
+            </div>
+          )}
+
+          <div className="grid gap-7 lg:grid-cols-3">
+            {/* Columna Izquierda: Tarjetas de Estado y Totales */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+                  <div>
+                    <p className="text-xs text-[var(--muted)]">Sesión de Caja</p>
+                    <p className="mt-0.5 text-sm font-bold text-[var(--navy)]">ID: {session.id}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    {session.estado === "SOLICITADO_SENCILLO" ? "En Solicitud de Sencillo" : "Abierta"}
+                  </span>
+                </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="rounded-xl bg-[#f8fafc] p-4">
                   <p className="text-xs font-medium text-slate-500">Fecha Apertura</p>
@@ -401,6 +424,7 @@ export default function CajeroCajaPage() {
               </button>
             </form>
           </div>
+        </div>
         </div>
       )}
 
