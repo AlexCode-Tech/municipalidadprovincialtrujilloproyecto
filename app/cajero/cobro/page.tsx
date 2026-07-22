@@ -302,8 +302,10 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
   }
 
   if (successData && tramite) {
-    const fechaHoyFormatted = new Date().toISOString().split("T")[0];
-    const hash78 = (successData.pagoId || "78F29A9A").slice(-8).toUpperCase();
+    const fechaPagoObj = new Date();
+    const fechaEmisionStr = `${String(fechaPagoObj.getDate()).padStart(2, "0")}/${String(fechaPagoObj.getMonth() + 1).padStart(2, "0")}/${fechaPagoObj.getFullYear()}`;
+    const fechaVenceObj = new Date(fechaPagoObj.getFullYear() + 1, fechaPagoObj.getMonth(), fechaPagoObj.getDate());
+    const fechaVencimientoStr = `${String(fechaVenceObj.getDate()).padStart(2, "0")}/${String(fechaVenceObj.getMonth() + 1).padStart(2, "0")}/${fechaVenceObj.getFullYear()}`;
 
     return (
       <div className="mx-auto max-w-2xl bg-white rounded-2xl border border-[var(--border)] p-7 shadow-xl">
@@ -336,95 +338,113 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
           <p className="mt-1 text-sm text-[var(--muted)]">El trámite se ha activado y se encuentra en inspección técnica.</p>
         </div>
 
-        {/* Factura Electrónica idéntica al modelo oficial */}
-        <div id="comprobante-imprimible" className="border border-slate-300 rounded-xl p-6 bg-white font-sans text-xs text-black shadow-sm space-y-4">
-          {/* Header */}
+        {/* Factura Electrónica en la estructura exacta de la imagen SUNAT */}
+        <div id="comprobante-imprimible" className="border-2 border-black p-5 bg-white font-sans text-xs text-black space-y-3">
+          {/* Bloque 1: Encabezado */}
           <div className="flex justify-between items-start gap-4">
-            <div>
-              <h2 className="font-extrabold text-sm sm:text-base tracking-tight uppercase text-black leading-tight">
-                MUNICIPALIDAD PROVINCIAL<br />DE TRUJILLO
+            <div className="leading-snug">
+              <h2 className="font-bold text-sm sm:text-base text-black uppercase">
+                MUNICIPALIDAD PROVINCIAL DE TRUJILLO
               </h2>
-              <p className="text-[11px] text-slate-800 mt-1">RUC: 20145480033</p>
-              <p className="text-[11px] text-slate-800">Av. España Nro. 456</p>
-              <p className="text-[11px] text-slate-800">Tel: 935082862</p>
+              <p className="text-[11px] text-black">JR. ALMAGRO 525 URB. CENTRO HISTORICO</p>
+              <p className="text-[11px] text-black">LA LIBERTAD - TRUJILLO - TRUJILLO</p>
             </div>
 
-            <div className="border border-black rounded-sm p-3 text-center min-w-[200px] bg-white">
-              <p className="font-bold text-xs">RUC: 20145480033</p>
-              <p className="font-bold text-xs uppercase tracking-wide my-1">FACTURA ELECTRONICA</p>
-              <p className="font-black text-sm tracking-wider">{successData.numeroFactura}</p>
-            </div>
-          </div>
-
-          <hr className="border-t-2 border-black my-2.5" />
-
-          {/* Client & Payment Info */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[11px] font-semibold text-black">
-            <div>
-              <p>Fecha: <span className="font-normal">{fechaHoyFormatted}</span></p>
-              <p className="mt-1">Razon social: <span className="font-normal">{tramite.negocio.razonSocial}</span></p>
-              <p className="mt-1">Direccion fiscal: <span className="font-normal">{tramite.negocio.domicilioFiscal}</span></p>
-            </div>
-            <div>
-              <p>Pago: <span className="font-normal">{metodo}</span></p>
-              <p className="mt-1">RUC: <span className="font-normal">{tramite.negocio.ruc}</span></p>
+            <div className="border-2 border-black p-2.5 text-center min-w-[210px] bg-white leading-tight">
+              <p className="font-bold text-xs">FACTURA ELECTRONICA</p>
+              <p className="font-bold text-xs my-0.5">RUC: 20175639391</p>
+              <p className="font-bold text-sm text-black">{successData.numeroFactura}</p>
             </div>
           </div>
 
-          <hr className="border-t-2 border-black my-2.5" />
+          <hr className="border-t border-black my-2" />
 
-          {/* Invoice Items Table */}
-          <div className="space-y-2">
-            <div className="bg-black text-white px-3 py-1 font-bold text-[11px] tracking-wider uppercase">
-              DETALLES DE LA FACTURA
-            </div>
+          {/* Bloque 2: Datos del Cliente */}
+          <div className="grid grid-cols-[140px_10px_1fr] gap-y-1 text-[11px] text-black leading-tight">
+            <div>Fecha de Vencimiento</div>
+            <div>:</div>
+            <div><strong>{fechaVencimientoStr}</strong></div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px] border-collapse">
-                <thead className="border-b border-slate-300 text-[10px] font-bold text-black uppercase">
-                  <tr>
-                    <th className="py-1 px-1 w-10">Cant.</th>
-                    <th className="py-1 px-1 w-10">Unid.</th>
-                    <th className="py-1 px-1 w-16">Codigo</th>
-                    <th className="py-1 px-1">Descripcion</th>
-                    <th className="py-1 px-1 text-right w-16">P. Unit.</th>
-                    <th className="py-1 px-1 text-right w-16">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-medium text-black">
-                  <tr>
-                    <td className="py-2 px-1">1</td>
-                    <td className="py-2 px-1">NIU</td>
-                    <td className="py-2 px-1 font-mono">SERV-001</td>
-                    <td className="py-2 px-1">Derecho de Trámite Licencia de Funcionamiento (Trujillo)</td>
-                    <td className="py-2 px-1 text-right">180.00</td>
-                    <td className="py-2 px-1 text-right font-bold">180.00</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <div>Fecha de Emisión</div>
+            <div>:</div>
+            <div><strong>{fechaEmisionStr}</strong></div>
 
-            <div className="text-right text-[11px] text-black pt-1 border-t border-slate-200">
-              Items: <span className="font-bold">1</span>
-            </div>
+            <div>Señor(es)</div>
+            <div>:</div>
+            <div><strong>{tramite.negocio.razonSocial.toUpperCase()}</strong></div>
+
+            <div>RUC</div>
+            <div>:</div>
+            <div><strong>{tramite.negocio.ruc}</strong></div>
+
+            <div>Establecimiento del Emisor</div>
+            <div>:</div>
+            <div><strong>{tramite.negocio.domicilioFiscal.toUpperCase()}</strong></div>
+
+            <div>Tipo de Moneda</div>
+            <div>:</div>
+            <div><strong>SOLES</strong></div>
+
+            <div>Observación</div>
+            <div>:</div>
+            <div><strong>ORDEN DE SERVICIO N. {tramite.codigo} ({metodo})</strong></div>
           </div>
 
-          {/* Total Box */}
-          <div className="flex justify-end my-3">
-            <div className="bg-black text-white px-6 py-1.5 flex items-center justify-between gap-6 font-bold text-xs sm:text-sm">
-              <span>IMPORTE TOTAL:</span>
-              <span className="font-black text-sm sm:text-base">S/ 180.00</span>
+          <hr className="border-t border-black my-2" />
+
+          {/* Bloque 3: Tabla de Detalles */}
+          <table className="w-full text-left text-[11px] border-collapse my-2">
+            <thead>
+              <tr className="border-y border-black font-bold">
+                <th className="py-1 px-1 text-right w-16">Cantidad</th>
+                <th className="py-1 px-1 text-left w-20">Unidad Medida</th>
+                <th className="py-1 px-1 text-left w-20">Código</th>
+                <th className="py-1 px-1 text-left">Descripción</th>
+                <th className="py-1 px-1 text-right w-24">Valor Unitario</th>
+              </tr>
+            </thead>
+            <tbody className="font-medium text-black">
+              <tr>
+                <td className="py-2 px-1 text-right align-top">1.00</td>
+                <td className="py-2 px-1 text-left align-top">UNIDAD</td>
+                <td className="py-2 px-1 text-left align-top">SERV-MPT</td>
+                <td className="py-2 px-1 text-left align-top">POR DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO</td>
+                <td className="py-2 px-1 text-right align-top">152.54</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <hr className="border-t border-black my-2" />
+
+          {/* Bloque 4: Totales */}
+          <div className="grid grid-cols-[1fr_210px] gap-4 items-start pt-1">
+            <div className="space-y-3">
+              <div className="border border-black px-3 py-1.5 inline-block text-[11px]">
+                Valor de Venta de Operaciones Gratuitas : <strong>S/ 0.00</strong>
+              </div>
+              <p className="font-bold text-[11px] text-black">
+                SON: CIENTO OCHENTA CON 00/100 SOLES
+              </p>
             </div>
+
+            <table className="w-full text-[10.5px] border border-black border-collapse">
+              <tbody className="divide-y divide-black">
+                <tr><td className="py-0.5 px-1.5">Sub Total Ventas :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 152.54</td></tr>
+                <tr><td className="py-0.5 px-1.5">Anticipos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
+                <tr><td className="py-0.5 px-1.5">Descuentos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
+                <tr><td className="py-0.5 px-1.5">Valor Venta :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 152.54</td></tr>
+                <tr><td className="py-0.5 px-1.5">ISC :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
+                <tr><td className="py-0.5 px-1.5">IGV :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 27.46</td></tr>
+                <tr><td className="py-0.5 px-1.5">Otros Cargos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
+                <tr><td className="py-0.5 px-1.5">Otros Tributos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
+                <tr className="font-bold bg-slate-50"><td className="py-1 px-1.5">Importe Total :</td><td className="py-1 px-1.5 text-right">S/ 180.00</td></tr>
+              </tbody>
+            </table>
           </div>
 
-          {/* Amount in words */}
-          <div className="border border-black p-2 text-center font-bold text-[11px] uppercase tracking-wide text-black">
-            SON: CIENTO OCHENTA CON 00/100 SOLES
-          </div>
-
-          {/* Footer breakdown */}
-          <div className="text-right text-[10px] text-slate-700 font-mono pt-1">
-            Op. Gravada: S/ 152.54 | IGV (18%): S/ 27.46 | Hash: {hash78}
+          {/* Bloque 5: Pie de Página */}
+          <div className="border border-black p-2 text-center text-[10px] italic mt-3 text-black">
+            Esta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.
           </div>
         </div>
 
