@@ -302,10 +302,8 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
   }
 
   if (successData && tramite) {
-    const fechaPagoObj = new Date();
-    const fechaEmisionStr = `${String(fechaPagoObj.getDate()).padStart(2, "0")}/${String(fechaPagoObj.getMonth() + 1).padStart(2, "0")}/${fechaPagoObj.getFullYear()}`;
-    const fechaVenceObj = new Date(fechaPagoObj.getFullYear() + 1, fechaPagoObj.getMonth(), fechaPagoObj.getDate());
-    const fechaVencimientoStr = `${String(fechaVenceObj.getDate()).padStart(2, "0")}/${String(fechaVenceObj.getMonth() + 1).padStart(2, "0")}/${fechaVenceObj.getFullYear()}`;
+    const fechaHoyFormatted = new Date().toISOString().split("T")[0];
+    const hash78 = (successData.pagoId || "78F29A9A").slice(-8).toUpperCase();
 
     return (
       <div className="mx-auto max-w-2xl bg-white rounded-2xl border border-[var(--border)] p-7 shadow-xl">
@@ -338,112 +336,152 @@ export default function CajeroCobroPage({ params }: { params?: any }) {
           <p className="mt-1 text-sm text-[var(--muted)]">El trámite se ha activado y se encuentra en inspección técnica.</p>
         </div>
 
-        {/* Factura Electrónica en la estructura exacta de la imagen SUNAT */}
+        {/* Factura Electrónica idéntica a la Representación Impresa SUNAT */}
         <div id="comprobante-imprimible" className="border-2 border-black p-5 bg-white font-sans text-xs text-black space-y-3">
           {/* Bloque 1: Encabezado */}
           <div className="flex justify-between items-start gap-4">
-            <div className="leading-snug">
-              <h2 className="font-bold text-sm sm:text-base text-black uppercase">
+            <div className="space-y-1 text-left leading-tight">
+              <h2 className="font-bold text-sm tracking-tight uppercase text-black">
                 MUNICIPALIDAD PROVINCIAL DE TRUJILLO
               </h2>
               <p className="text-[11px] text-black">JR. ALMAGRO 525 URB. CENTRO HISTORICO</p>
               <p className="text-[11px] text-black">LA LIBERTAD - TRUJILLO - TRUJILLO</p>
+              <p className="text-[10px] text-black mt-1">
+                Establecimiento del Emisor : JR. ALMAGRO 525 URB. CENTRO HISTORICO LA LIBERTAD-TRUJILLO-TRUJILLO
+              </p>
             </div>
 
-            <div className="border-2 border-black p-2.5 text-center min-w-[210px] bg-white leading-tight">
-              <p className="font-bold text-xs">FACTURA ELECTRONICA</p>
+            <div className="border-1.5 border-black p-2.5 text-center min-w-[200px] bg-white">
+              <p className="font-bold text-xs uppercase tracking-wide">FACTURA ELECTRONICA</p>
               <p className="font-bold text-xs my-0.5">RUC: 20175639391</p>
-              <p className="font-bold text-sm text-black">{successData.numeroFactura}</p>
+              <p className="font-extrabold text-sm tracking-wider text-black">{successData.numeroFactura}</p>
             </div>
           </div>
 
           <hr className="border-t border-black my-2" />
 
-          {/* Bloque 2: Datos del Cliente */}
-          <div className="grid grid-cols-[140px_10px_1fr] gap-y-1 text-[11px] text-black leading-tight">
-            <div>Fecha de Vencimiento</div>
-            <div>:</div>
-            <div><strong>{fechaVencimientoStr}</strong></div>
-
-            <div>Fecha de Emisión</div>
-            <div>:</div>
-            <div><strong>{fechaEmisionStr}</strong></div>
-
-            <div>Señor(es)</div>
-            <div>:</div>
-            <div><strong>{tramite.negocio.razonSocial.toUpperCase()}</strong></div>
-
-            <div>RUC</div>
-            <div>:</div>
-            <div><strong>{tramite.negocio.ruc}</strong></div>
-
-            <div>Establecimiento del Emisor</div>
-            <div>:</div>
-            <div><strong>{tramite.negocio.domicilioFiscal.toUpperCase()}</strong></div>
-
-            <div>Tipo de Moneda</div>
-            <div>:</div>
-            <div><strong>SOLES</strong></div>
-
-            <div>Observación</div>
-            <div>:</div>
-            <div><strong>ORDEN DE SERVICIO N. {tramite.codigo} ({metodo})</strong></div>
+          {/* Bloque 2: Datos del Cliente y Trámite */}
+          <div className="space-y-1 text-[11px] leading-snug">
+            <div className="flex">
+              <span className="w-40 font-normal">Fecha de Vencimiento</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold">{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString("es-PE")}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 font-normal">Fecha de Emisión</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold">{fechaHoyFormatted}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 font-normal">Señor(es)</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold uppercase">{tramite.negocio.razonSocial}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 font-normal">RUC</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold">{tramite.negocio.ruc}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 font-normal">Establecimiento del Emisor</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold uppercase">{tramite.negocio.domicilioFiscal}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 font-normal">Tipo de Moneda</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold">SOLES</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 font-normal">Observación</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold uppercase">ORDEN DE SERVICIO N. {tramite.codigo} ({metodo})</span>
+            </div>
           </div>
 
           <hr className="border-t border-black my-2" />
 
           {/* Bloque 3: Tabla de Detalles */}
-          <table className="w-full text-left text-[11px] border-collapse my-2">
-            <thead>
-              <tr className="border-y border-black font-bold">
-                <th className="py-1 px-1 text-right w-16">Cantidad</th>
-                <th className="py-1 px-1 text-left w-20">Unidad Medida</th>
-                <th className="py-1 px-1 text-left w-20">Código</th>
-                <th className="py-1 px-1 text-left">Descripción</th>
-                <th className="py-1 px-1 text-right w-24">Valor Unitario</th>
-              </tr>
-            </thead>
-            <tbody className="font-medium text-black">
-              <tr>
-                <td className="py-2 px-1 text-right align-top">1.00</td>
-                <td className="py-2 px-1 text-left align-top">UNIDAD</td>
-                <td className="py-2 px-1 text-left align-top">SERV-MPT</td>
-                <td className="py-2 px-1 text-left align-top">POR DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO</td>
-                <td className="py-2 px-1 text-right align-top">152.54</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <hr className="border-t border-black my-2" />
-
-          {/* Bloque 4: Totales */}
-          <div className="grid grid-cols-[1fr_210px] gap-4 items-start pt-1">
-            <div className="space-y-3">
-              <div className="border border-black px-3 py-1.5 inline-block text-[11px]">
-                Valor de Venta de Operaciones Gratuitas : <strong>S/ 0.00</strong>
-              </div>
-              <p className="font-bold text-[11px] text-black">
-                SON: CIENTO OCHENTA CON 00/100 SOLES
-              </p>
-            </div>
-
-            <table className="w-full text-[10.5px] border border-black border-collapse">
-              <tbody className="divide-y divide-black">
-                <tr><td className="py-0.5 px-1.5">Sub Total Ventas :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 152.54</td></tr>
-                <tr><td className="py-0.5 px-1.5">Anticipos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
-                <tr><td className="py-0.5 px-1.5">Descuentos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
-                <tr><td className="py-0.5 px-1.5">Valor Venta :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 152.54</td></tr>
-                <tr><td className="py-0.5 px-1.5">ISC :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
-                <tr><td className="py-0.5 px-1.5">IGV :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 27.46</td></tr>
-                <tr><td className="py-0.5 px-1.5">Otros Cargos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
-                <tr><td className="py-0.5 px-1.5">Otros Tributos :</td><td className="py-0.5 px-1.5 text-right font-medium">S/ 0.00</td></tr>
-                <tr className="font-bold bg-slate-50"><td className="py-1 px-1.5">Importe Total :</td><td className="py-1 px-1.5 text-right">S/ 180.00</td></tr>
+          <div className="border border-black">
+            <table className="w-full text-left text-[11px] border-collapse">
+              <thead className="border-b border-black text-[11px] font-bold text-black bg-slate-50">
+                <tr>
+                  <th className="py-1 px-2 text-right w-16 border-r border-black">Cantidad</th>
+                  <th className="py-1 px-2 text-left w-24 border-r border-black">Unidad Medida</th>
+                  <th className="py-1 px-2 text-left w-24 border-r border-black">Código</th>
+                  <th className="py-1 px-2 text-left border-r border-black">Descripción</th>
+                  <th className="py-1 px-2 text-right w-24">Valor Unitario</th>
+                </tr>
+              </thead>
+              <tbody className="font-medium text-black">
+                <tr>
+                  <td className="py-2 px-2 text-right border-r border-black valign-top">1.00</td>
+                  <td className="py-2 px-2 text-left border-r border-black valign-top">UNIDAD</td>
+                  <td className="py-2 px-2 text-left border-r border-black font-mono valign-top">SERV-MPT</td>
+                  <td className="py-2 px-2 text-left border-r border-black valign-top">POR DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO</td>
+                  <td className="py-2 px-2 text-right valign-top">152.54</td>
+                </tr>
               </tbody>
             </table>
           </div>
 
+          {/* Bloque 4: Totales y Desglose Tributario */}
+          <div className="grid grid-cols-2 gap-4 items-start pt-2">
+            <div className="space-y-3">
+              <div className="inline-block border border-black px-3 py-1.5 text-[11px]">
+                Valor de Venta de Operaciones Gratuitas : <strong className="ml-2 font-bold">S/ 0.00</strong>
+              </div>
+              <div className="font-bold text-[11px] text-black">
+                SON: CIENTO OCHENTA CON 00/100 SOLES
+              </div>
+            </div>
+
+            <div className="justify-self-end w-full max-w-[240px]">
+              <table className="w-full border border-black text-[10.5px] border-collapse text-black">
+                <tbody>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">Sub Total Ventas :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 152.54</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">Anticipos :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 0.00</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">Descuentos :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 0.00</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">Valor Venta :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 152.54</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">ISC :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 0.00</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">IGV :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 27.46</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">Otros Cargos :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 0.00</td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="py-0.5 px-2 font-medium">Otros Tributos :</td>
+                    <td className="py-0.5 px-2 text-right font-medium">S/ 0.00</td>
+                  </tr>
+                  <tr className="font-bold bg-slate-50">
+                    <td className="py-1 px-2">Importe Total :</td>
+                    <td className="py-1 px-2 text-right">S/ 180.00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Bloque 5: Pie de Página */}
-          <div className="border border-black p-2 text-center text-[10px] italic mt-3 text-black">
+          <div className="border border-black p-2 text-center text-[10px] italic text-black">
             Esta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.
           </div>
         </div>
