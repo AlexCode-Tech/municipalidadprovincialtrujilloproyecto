@@ -11,6 +11,7 @@ type Tramite = {
   codigo: string;
   estado: string;
   tipoTramite: string;
+  direccionTrujillo?: string | null;
   negocio: {
     razonSocial: string;
     ruc: string;
@@ -567,8 +568,12 @@ export default function CajeroCobroPage() {
                 <p className="font-mono text-slate-800">{tramite.negocio.ruc}</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--muted)]">Dirección</p>
-                <p className="text-slate-700 leading-5">{tramite.negocio.domicilioFiscal}</p>
+                <p className="text-xs text-[var(--muted)] font-medium">Dirección del Local a Licenciar (Sucursal)</p>
+                <p className="text-slate-800 font-bold leading-5">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--muted)] font-medium">Domicilio Fiscal (SUNAT)</p>
+                <p className="text-slate-600 leading-5 text-xs">{tramite.negocio.domicilioFiscal}</p>
               </div>
               <div>
                 <p className="text-xs text-[var(--muted)]">Tipo de Trámite</p>
