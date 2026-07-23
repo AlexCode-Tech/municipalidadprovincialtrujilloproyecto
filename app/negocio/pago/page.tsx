@@ -19,8 +19,12 @@ function PagoContent() {
   // Estado para el modal de simulación de pago
   const [showModalSimular, setShowModalSimular] = useState(false);
   const [metodoSimulacion, setMetodoSimulacion] = useState<"TARJETA" | "YAPE" | "MIXTO">("TARJETA");
+  const [submetodoMixto, setSubmetodoMixto] = useState<"TARJETA_YAPE" | "TARJETA_TARJETA" | "YAPE_YAPE" | "EFECTIVO_YAPE" | "EFECTIVO_TARJETA">("TARJETA_YAPE");
   const [montoTarjetaInput, setMontoTarjetaInput] = useState("100.00");
   const [montoYapeInput, setMontoYapeInput] = useState("80.00");
+  const [montoP1Input, setMontoP1Input] = useState("90.00");
+  const [montoP2Input, setMontoP2Input] = useState("90.00");
+  const [montoEfectivoInput, setMontoEfectivoInput] = useState("100.00");
 
   // Estado para gestión de vuelto en Pago Mixto
   const [vueltoModo, setVueltoModo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
@@ -46,7 +50,23 @@ function PagoContent() {
   // Cálculos de vuelto en tiempo real
   const montoTarjetaVal = parseFloat(montoTarjetaInput) || 0;
   const montoYapeVal = parseFloat(montoYapeInput) || 0;
-  const totalEntregado = montoTarjetaVal + montoYapeVal;
+  const montoP1Val = parseFloat(montoP1Input) || 0;
+  const montoP2Val = parseFloat(montoP2Input) || 0;
+  const montoEfectivoVal = parseFloat(montoEfectivoInput) || 0;
+
+  let totalEntregado = 180.00;
+  if (metodoSimulacion === "MIXTO") {
+    if (submetodoMixto === "TARJETA_YAPE") {
+      totalEntregado = montoTarjetaVal + montoYapeVal;
+    } else if (submetodoMixto === "TARJETA_TARJETA" || submetodoMixto === "YAPE_YAPE") {
+      totalEntregado = montoP1Val + montoP2Val;
+    } else if (submetodoMixto === "EFECTIVO_YAPE") {
+      totalEntregado = montoEfectivoVal + montoYapeVal;
+    } else if (submetodoMixto === "EFECTIVO_TARJETA") {
+      totalEntregado = montoEfectivoVal + montoTarjetaVal;
+    }
+  }
+
   const vueltoCalculadoTotal = Math.max(0, Math.round((totalEntregado - 180.00) * 100) / 100);
 
   let vueltoEfectivoCalculado = 0;
@@ -217,8 +237,22 @@ function PagoContent() {
       montoTarjeta = 0;
       montoYape = 180;
     } else if (metodoSimulacion === "MIXTO") {
-      montoTarjeta = montoTarjetaVal;
-      montoYape = montoYapeVal;
+      if (submetodoMixto === "TARJETA_YAPE") {
+        montoTarjeta = montoTarjetaVal;
+        montoYape = montoYapeVal;
+      } else if (submetodoMixto === "TARJETA_TARJETA") {
+        montoTarjeta = montoP1Val + montoP2Val;
+        montoYape = 0;
+      } else if (submetodoMixto === "YAPE_YAPE") {
+        montoTarjeta = 0;
+        montoYape = montoP1Val + montoP2Val;
+      } else if (submetodoMixto === "EFECTIVO_YAPE") {
+        montoTarjeta = montoEfectivoVal;
+        montoYape = montoYapeVal;
+      } else if (submetodoMixto === "EFECTIVO_TARJETA") {
+        montoTarjeta = montoEfectivoVal + montoTarjetaVal;
+        montoYape = 0;
+      }
 
       if (totalEntregado < 179.99) {
         setError(`El monto total ingresado (S/ ${totalEntregado.toFixed(2)}) es menor a la tasa oficial de S/ 180.00.`);
@@ -500,34 +534,156 @@ function PagoContent() {
             {metodoSimulacion === "MIXTO" && (
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-4 animate-in fade-in">
                 <div>
-                  <p className="text-xs font-bold text-indigo-900">Ingreso de Montos Recibidos:</p>
-                  <p className="text-[11px] text-slate-500">Tasa del trámite a cubrir: <strong>S/ 180.00</strong></p>
+                  <label className="text-xs font-bold text-indigo-900 block mb-1">
+                    Selecciona la Combinación de Pago Mixto:
+                  </label>
+                  <select
+                    value={submetodoMixto}
+                    onChange={(e) => setSubmetodoMixto(e.target.value as any)}
+                    className="h-10 w-full rounded-xl border border-indigo-300 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600"
+                  >
+                    <option value="TARJETA_YAPE">💳 + 📱 Tarjeta y YAPE (S/ 90.00 + S/ 90.00)</option>
+                    <option value="TARJETA_TARJETA">💳 + 💳 Tarjeta 1 y Tarjeta 2 (Dos Tarjetas)</option>
+                    <option value="YAPE_YAPE">📱 + 📱 YAPE 1 y YAPE 2 (Dos YAPE)</option>
+                    <option value="EFECTIVO_YAPE">💵 + 📱 Efectivo y YAPE</option>
+                    <option value="EFECTIVO_TARJETA">💵 + 💳 Efectivo y Tarjeta</option>
+                  </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta / Efectivo (S/)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={montoTarjetaInput}
-                      onChange={(e) => setMontoTarjetaInput(handleDecimalInput(e.target.value))}
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
-                    />
+                {submetodoMixto === "TARJETA_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoTarjetaInput}
+                        onChange={(e) => setMontoTarjetaInput(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Yape (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoYapeInput}
+                        onChange={(e) => setMontoYapeInput(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Yape (S/)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={montoYapeInput}
-                      onChange={(e) => setMontoYapeInput(handleDecimalInput(e.target.value))}
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
-                    />
+                )}
+
+                {submetodoMixto === "TARJETA_TARJETA" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta 1 (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP1Input}
+                        onChange={(e) => setMontoP1Input(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta 2 (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP2Input}
+                        onChange={(e) => setMontoP2Input(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {submetodoMixto === "YAPE_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Yape 1 (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP1Input}
+                        onChange={(e) => setMontoP1Input(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Yape 2 (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP2Input}
+                        onChange={(e) => setMontoP2Input(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {submetodoMixto === "EFECTIVO_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Efectivo (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoEfectivoInput}
+                        onChange={(e) => setMontoEfectivoInput(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Yape (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoYapeInput}
+                        onChange={(e) => setMontoYapeInput(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {submetodoMixto === "EFECTIVO_TARJETA" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Efectivo (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoEfectivoInput}
+                        onChange={(e) => setMontoEfectivoInput(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarjeta (S/)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoTarjetaInput}
+                        onChange={(e) => setMontoTarjetaInput(handleDecimalInput(e.target.value))}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Resumen en tiempo real */}
                 <div className="flex items-center justify-between border-t border-indigo-100 pt-3 text-xs">
