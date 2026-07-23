@@ -16,6 +16,14 @@ import {
 import { DISTRITOS_TRUJILLO } from "@/lib/distritos";
 import { solicitudTramiteSchema } from "@/lib/validaciones";
 
+type LocalPrevio = {
+  id: string;
+  codigo: string;
+  estado: string;
+  direccion: string;
+  licencia: string | null;
+};
+
 type DatosRuc = {
   razonSocial: string;
   domicilioFiscal: string;
@@ -24,6 +32,7 @@ type DatosRuc = {
   departamento?: string;
   estado?: string;
   condicion?: string;
+  localesPrevios?: LocalPrevio[];
 };
 type PlanoEstado = "idle" | "analizando" | "valido" | "invalido" | "error";
 type FormErrors = Record<string, string | undefined>;
@@ -33,12 +42,15 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 export function RegistroTramiteForm({ presencial = false }: { presencial?: boolean }) {
   const router = useRouter();
+  const [tipoTramite, setTipoTramite] = useState<"INICIAL" | "RENOVACION">("INICIAL");
+  const [tieneCambios, setTieneCambios] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [ruc, setRuc] = useState("");
   const [telefono, setTelefono] = useState("");
   const [distrito, setDistrito] = useState("");
   const [provincia, setProvincia] = useState("");
   const [departamento, setDepartamento] = useState("");
+  const [direccionTrujillo, setDireccionTrujillo] = useState("");
   const [datosRuc, setDatosRuc] = useState<DatosRuc | null>(null);
   const [consultandoRuc, setConsultandoRuc] = useState(false);
   const [errorRuc, setErrorRuc] = useState("");
@@ -64,6 +76,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
       setDistrito("");
       setProvincia("");
       setDepartamento("");
+      setDireccionTrujillo("");
       setErrorRuc("Ingresa un RUC 20 válido de 11 dígitos.");
       return;
     }
@@ -91,16 +104,19 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
         distrito: result.distrito,
         provincia: result.provincia,
         departamento: result.departamento,
+        localesPrevios: result.localesPrevios || [],
       });
       if (result.distrito) setDistrito(result.distrito);
       if (result.provincia) setProvincia(result.provincia);
       if (result.departamento) setDepartamento(result.departamento);
+      if (result.domicilioFiscal) setDireccionTrujillo(result.domicilioFiscal);
       clearErrors("ruc", "razonSocial", "domicilioFiscal", "distrito", "provincia", "departamento");
     } catch (error) {
       setDatosRuc(null);
       setDistrito("");
       setProvincia("");
       setDepartamento("");
+      setDireccionTrujillo("");
       setErrorRuc(error instanceof Error ? error.message : "No se pudo consultar el RUC.");
     } finally {
       setConsultandoRuc(false);
@@ -166,7 +182,9 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (planoEstado !== "valido") return;
+    // Only require plano validation for INICIAL or RENOVACION with structural changes
+    const requierePlano = tipoTramite === "INICIAL" || tieneCambios;
+    if (requierePlano && planoEstado !== "valido") return;
 
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
     const result = solicitudTramiteSchema.safeParse(values);
@@ -220,7 +238,14 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
         const tramiteRes = await fetch("/api/tramites", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ negocioId: negocio.id, planoValidado: true }),
+          body: JSON.stringify({
+            negocioId: negocio.id,
+            direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
+            planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
+            tipoTramite,
+            poseeCambiosEstructura: tipoTramite === "RENOVACION" && tieneCambios,
+            confirmacionSinCambios: tipoTramite === "RENOVACION" && !tieneCambios
+          }),
         });
 
         if (tramiteRes.status === 401) {
@@ -239,22 +264,26 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
 
         const tramite = (await tramiteRes.json()) as { id: string };
         tramiteId = tramite.id;
-        router.push(`/negocio/pago?tramiteId=${tramiteId}`);
+        router.push(presencial ? `/cajero/cobro?tramiteId=${tramiteId}` : `/negocio/pago?tramiteId=${tramiteId}`);
       } else {
         // Flujo NEGOCIO: Enviar datos fiscales ingresados por el usuario para actualizar/crear su negocio
         const tramiteRes = await fetch("/api/tramites", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            planoValidado: true,
+            planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
             ruc: result.data.ruc,
             razonSocial: result.data.razonSocial,
             domicilioFiscal: result.data.domicilioFiscal,
+            direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
             distrito: result.data.distrito,
             provincia: result.data.provincia,
             departamento: result.data.departamento,
             telefono: result.data.telefono || undefined,
             email: result.data.email || undefined,
+            tipoTramite,
+            poseeCambiosEstructura: tipoTramite === "RENOVACION" && tieneCambios,
+            confirmacionSinCambios: tipoTramite === "RENOVACION" && !tieneCambios
           }),
         });
 
@@ -284,12 +313,90 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
 
   const input = "focus-ring mt-2 h-12 w-full rounded-xl border border-[var(--border)] bg-white px-3 text-sm outline-none placeholder:text-slate-400 focus:border-[var(--blue)]";
   const readonlyInput = `${input} cursor-not-allowed bg-slate-50 text-slate-700`;
-  const puedeEnviar = planoEstado === "valido" && !loading;
+  const puedeEnviar = (!loading) && (tipoTramite === "INICIAL" || tieneCambios ? planoEstado === "valido" : true);
   const rucMessage = errorRuc || formErrors.ruc;
 
   return (
     <form onSubmit={submit} className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm sm:p-7">
       <div className="grid gap-5 md:grid-cols-2">
+        {/* Selección del tipo de trámite */}
+        <div className="md:col-span-2">
+          <label className="text-sm font-semibold block mb-2">Tipo de Trámite</label>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setTipoTramite("INICIAL");
+                setPlanoEstado("idle");
+                setFileName("");
+              }}
+              className={`h-11 rounded-xl text-xs font-bold border transition ${
+                tipoTramite === "INICIAL"
+                  ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Primera Licencia (Inicial)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTipoTramite("RENOVACION");
+                setTieneCambios(false);
+                setPlanoEstado("idle");
+                setFileName("");
+              }}
+              className={`h-11 rounded-xl text-xs font-bold border transition ${
+                tipoTramite === "RENOVACION"
+                  ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Renovación de Licencia
+            </button>
+          </div>
+        </div>
+
+        {tipoTramite === "RENOVACION" && (
+          <div className="md:col-span-2 rounded-xl bg-slate-50 p-4 border border-slate-200">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              ¿El establecimiento comercial posee modificaciones estructurales?
+            </label>
+            <p className="text-xs text-slate-500 mb-3">
+              Por ejemplo: ampliación de metros cuadrados, aumento de niveles/pisos, cambios de distribución interna.
+            </p>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name="tieneCambios"
+                  checked={tieneCambios === false}
+                  onChange={() => {
+                    setTieneCambios(false);
+                    setPlanoEstado("idle");
+                    setFileName("");
+                  }}
+                  className="h-4 w-4 text-blue-600"
+                />
+                No, se mantiene igual (No requiere planos)
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name="tieneCambios"
+                  checked={tieneCambios === true}
+                  onChange={() => {
+                    setTieneCambios(true);
+                    setPlanoEstado("idle");
+                    setFileName("");
+                  }}
+                  className="h-4 w-4 text-blue-600"
+                />
+                Sí, tiene cambios (Requiere nuevo plano)
+              </label>
+            </div>
+          </div>
+        )}
         <label className="text-sm font-medium">
           RUC <span className="text-[var(--danger)]" aria-hidden="true">*</span>
           <span className="mt-2 flex">
@@ -337,7 +444,56 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           {formErrors.domicilioFiscal ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.domicilioFiscal}</span> : null}
         </label>
 
-        {datosRuc ? <p className="-mt-2 flex items-center gap-2 text-sm text-emerald-700 md:col-span-2" role="status"><CheckCircle2 size={17} />Datos fiscales encontrados y bloqueados para edición.</p> : null}
+        {datosRuc ? (
+          <div className="md:col-span-2 space-y-3">
+            <p className="-mt-1 flex items-center gap-2 text-sm text-emerald-700 font-medium" role="status">
+              <CheckCircle2 size={17} /> Datos fiscales SUNAT encontrados correctamente.
+            </p>
+
+            {datosRuc.localesPrevios && datosRuc.localesPrevios.length > 0 ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-slate-700">
+                <p className="font-bold text-blue-900 flex items-center gap-1.5 mb-2 text-sm">
+                  🏢 Establecimientos / Sucursales Registradas de este RUC ({datosRuc.localesPrevios.length})
+                </p>
+                <p className="text-slate-600 mb-3">
+                  Un mismo RUC puede poseer múltiples locales comerciales independientes en Trujillo. A continuación se muestran los trámites y locales existentes de esta empresa:
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {datosRuc.localesPrevios.map((loc) => (
+                    <div key={loc.id} className="rounded-lg bg-white p-2.5 border border-blue-100 shadow-2xs">
+                      <span className="font-bold text-blue-800 block">{loc.codigo}</span>
+                      <span className="text-slate-600 font-mono block truncate" title={loc.direccion}>{loc.direccion}</span>
+                      <div className="mt-1 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-500">Estado: {loc.estado}</span>
+                        {loc.licencia ? <span className="font-bold text-emerald-700">Lic. #{loc.licencia}</span> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <label className="text-sm font-medium md:col-span-2">
+          Dirección del Local a Licenciar (Sucursal) <span className="text-[var(--danger)]" aria-hidden="true">*</span>
+          <input
+            className={input}
+            name="direccionTrujillo"
+            value={direccionTrujillo}
+            onChange={(e) => {
+              setDireccionTrujillo(e.target.value);
+              clearErrors("direccionTrujillo");
+            }}
+            placeholder="Ej: Jr. Pizarro 450, Av. España 1200..."
+            required
+            aria-invalid={Boolean(formErrors.direccionTrujillo)}
+          />
+          {formErrors.direccionTrujillo ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.direccionTrujillo}</span> : null}
+          <span className="mt-1 block text-xs text-slate-500 font-normal">
+            Especifica la dirección del nuevo establecimiento comercial o sucursal a licenciar en Trujillo.
+          </span>
+        </label>
 
         <label className="text-sm font-medium">
           Distrito <span className="text-[var(--danger)]" aria-hidden="true">*</span>
@@ -384,7 +540,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           {formErrors.departamento ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.departamento}</span> : null}
         </label>
         <label className="text-sm font-medium">
-          Celular
+          Celular <span className="text-[var(--danger)]" aria-hidden="true">*</span>
           <input
             className={input}
             name="telefono"
@@ -393,106 +549,108 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             pattern="9[0-9]{8}"
             maxLength={9}
             placeholder="987654321"
-            aria-invalid={Boolean(formErrors.telefono || formErrors.contacto)}
+            required
+            aria-invalid={Boolean(formErrors.telefono)}
             onChange={(event) => {
               setTelefono(event.target.value.replace(/\D/g, "").slice(0, 9));
-              clearErrors("telefono", "contacto");
+              clearErrors("telefono");
             }}
           />
           {formErrors.telefono ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.telefono}</span> : null}
         </label>
         <label className="text-sm font-medium md:col-span-2">
-          Correo electrónico
-          <input className={input} name="email" type="email" placeholder="contacto@negocio.pe" aria-invalid={Boolean(formErrors.email || formErrors.contacto)} onChange={() => clearErrors("email", "contacto")} />
+          Correo electrónico <span className="text-[var(--danger)]" aria-hidden="true">*</span>
+          <input className={input} name="email" type="email" placeholder="contacto@negocio.pe" required aria-invalid={Boolean(formErrors.email)} onChange={() => clearErrors("email")} />
           {formErrors.email ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.email}</span> : null}
-          {formErrors.contacto ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.contacto}</span> : <span className="mt-1.5 block text-xs font-normal text-[var(--muted)]">Ingresa al menos un celular o un correo electrónico.</span>}
         </label>
       </div>
 
-      <div className="mt-7 border-t border-[var(--border)] pt-6">
-        <h3 className="font-bold">Plano del local</h3>
-        <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-          Adjunta un plano arquitectónico legible en PNG o JPG. El sistema verificará su contenido antes de habilitar el pago.
-        </p>
+      {(tipoTramite === "INICIAL" || tieneCambios) && (
+        <div className="mt-7 border-t border-[var(--border)] pt-6">
+          <h3 className="font-bold">Plano del local</h3>
+          <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+            Adjunta un plano arquitectónico legible en PNG o JPG. El sistema verificará su contenido antes de habilitar el pago.
+          </p>
 
-        {planoEstado === "idle" ? (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
+          {planoEstado === "idle" ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  fileRef.current?.click();
+                }
+              }}
+              onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(event) => {
                 event.preventDefault();
-                fileRef.current?.click();
-              }
-            }}
-            onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragOver(false);
-              const file = event.dataTransfer.files?.[0];
+                setDragOver(false);
+                const file = event.dataTransfer.files?.[0];
+                if (file) procesarArchivo(file);
+              }}
+              className={`focus-ring mt-4 flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 text-sm font-semibold transition select-none ${dragOver ? "border-[var(--blue)] bg-blue-100" : "border-blue-300 bg-blue-50/40 text-[var(--blue)] hover:bg-blue-50"}`}
+            >
+              <UploadCloud size={28} strokeWidth={1.6} />
+              <span>{dragOver ? "Suelta la imagen aquí" : "Haz clic o arrastra el plano del local aquí"}</span>
+              <span className="text-xs font-normal text-[var(--muted)]">Solo PNG o JPG — máx. 10 MB</span>
+            </div>
+          ) : null}
+
+          {planoEstado === "analizando" ? (
+            <div className="mt-4 flex min-h-28 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 px-4" role="status">
+              <LoaderCircle size={28} className="animate-spin text-amber-500" />
+              <p className="text-sm font-semibold text-amber-700">Analizando el contenido del plano…</p>
+              <p className="text-xs text-amber-600">{fileName}</p>
+            </div>
+          ) : null}
+
+          {planoEstado === "valido" ? (
+            <div className="mt-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 p-4" role="status">
+              <div className="flex items-start gap-3">
+                <ShieldCheck size={22} className="mt-0.5 shrink-0 text-emerald-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-emerald-700">Plano validado correctamente</p>
+                  <p className="mt-0.5 truncate text-xs text-emerald-600">{fileName}</p>
+                  <p className="mt-1.5 text-xs leading-5 text-emerald-700/80">{planoMotivo}</p>
+                </div>
+                <button type="button" onClick={limpiarPlano} className="rounded-lg p-1 text-emerald-500 hover:bg-emerald-100" aria-label="Quitar archivo"><X size={16} /></button>
+              </div>
+            </div>
+          ) : null}
+
+          {planoEstado === "invalido" || planoEstado === "error" ? (
+            <div className={`mt-4 rounded-xl border-2 p-4 ${planoEstado === "invalido" ? "border-red-300 bg-red-50" : "border-orange-300 bg-orange-50"}`} role="alert">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={22} className={`mt-0.5 shrink-0 ${planoEstado === "invalido" ? "text-red-500" : "text-orange-500"}`} />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${planoEstado === "invalido" ? "text-red-700" : "text-orange-700"}`}>
+                    {planoEstado === "invalido" ? "El archivo no es un plano válido" : "Error al validar el archivo"}
+                  </p>
+                  <p className={`mt-1 text-xs leading-5 ${planoEstado === "invalido" ? "text-red-600" : "text-orange-600"}`}>{planoMotivo}</p>
+                  <button type="button" onClick={() => fileRef.current?.click()} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-current bg-white px-3 py-1.5 text-xs font-semibold">
+                    <UploadCloud size={14} /> Subir otra imagen
+                  </button>
+                </div>
+                <button type="button" onClick={limpiarPlano} className="rounded-lg p-1 text-slate-500 hover:bg-white" aria-label="Quitar archivo"><X size={16} /></button>
+              </div>
+            </div>
+          ) : null}
+
+          <input
+            ref={fileRef}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
               if (file) procesarArchivo(file);
             }}
-            className={`focus-ring mt-4 flex min-h-28 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 text-sm font-semibold transition select-none ${dragOver ? "border-[var(--blue)] bg-blue-100" : "border-blue-300 bg-blue-50/40 text-[var(--blue)] hover:bg-blue-50"}`}
-          >
-            <UploadCloud size={28} strokeWidth={1.6} />
-            <span>{dragOver ? "Suelta la imagen aquí" : "Haz clic o arrastra el plano del local aquí"}</span>
-            <span className="text-xs font-normal text-[var(--muted)]">Solo PNG o JPG — máx. 10 MB</span>
-          </div>
-        ) : null}
-
-        {planoEstado === "analizando" ? (
-          <div className="mt-4 flex min-h-28 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 px-4" role="status">
-            <LoaderCircle size={28} className="animate-spin text-amber-500" />
-            <p className="text-sm font-semibold text-amber-700">Analizando el contenido del plano…</p>
-            <p className="text-xs text-amber-600">{fileName}</p>
-          </div>
-        ) : null}
-
-        {planoEstado === "valido" ? (
-          <div className="mt-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 p-4" role="status">
-            <div className="flex items-start gap-3">
-              <ShieldCheck size={22} className="mt-0.5 shrink-0 text-emerald-600" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-emerald-700">Plano validado correctamente</p>
-                <p className="mt-0.5 truncate text-xs text-emerald-600">{fileName}</p>
-                <p className="mt-1.5 text-xs leading-5 text-emerald-700/80">{planoMotivo}</p>
-              </div>
-              <button type="button" onClick={limpiarPlano} className="rounded-lg p-1 text-emerald-500 hover:bg-emerald-100" aria-label="Quitar archivo"><X size={16} /></button>
-            </div>
-          </div>
-        ) : null}
-
-        {planoEstado === "invalido" || planoEstado === "error" ? (
-          <div className={`mt-4 rounded-xl border-2 p-4 ${planoEstado === "invalido" ? "border-red-300 bg-red-50" : "border-orange-300 bg-orange-50"}`} role="alert">
-            <div className="flex items-start gap-3">
-              <AlertCircle size={22} className={`mt-0.5 shrink-0 ${planoEstado === "invalido" ? "text-red-500" : "text-orange-500"}`} />
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-semibold ${planoEstado === "invalido" ? "text-red-700" : "text-orange-700"}`}>
-                  {planoEstado === "invalido" ? "El archivo no es un plano válido" : "Error al validar el archivo"}
-                </p>
-                <p className={`mt-1 text-xs leading-5 ${planoEstado === "invalido" ? "text-red-600" : "text-orange-600"}`}>{planoMotivo}</p>
-                <button type="button" onClick={() => fileRef.current?.click()} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-current bg-white px-3 py-1.5 text-xs font-semibold">
-                  <UploadCloud size={14} /> Subir otra imagen
-                </button>
-              </div>
-              <button type="button" onClick={limpiarPlano} className="rounded-lg p-1 text-slate-500 hover:bg-white" aria-label="Quitar archivo"><X size={16} /></button>
-            </div>
-          </div>
-        ) : null}
-
-        <input
-          ref={fileRef}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) procesarArchivo(file);
-          }}
-          className="hidden"
-          type="file"
-          accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-        />
-      </div>
+            className="hidden"
+            type="file"
+            accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+          />
+        </div>
+      )}
 
       {submitError ? (
         <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
