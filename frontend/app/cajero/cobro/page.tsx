@@ -53,8 +53,7 @@ export default function CajeroCobroPage() {
   const [cajaLoading, setCajaLoading] = useState(true);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
-  // Estados de cobro / modal
-  const [showModalMercadoPago, setShowModalMercadoPago] = useState(false);
+  // Estados de cobro simulado / modal
   const [showModalSimular, setShowModalSimular] = useState(false);
   const [metodoSimulacion, setMetodoSimulacion] = useState<"EFECTIVO" | "YAPE" | "TARJETA" | "MIXTO">("EFECTIVO");
   const [submetodoMixto, setSubmetodoMixto] = useState<"EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA">("TARJETA_YAPE");
@@ -609,10 +608,32 @@ export default function CajeroCobroPage() {
           </div>
 
           <div className="space-y-3">
-            {/* Botón 1: Pagar con Mercado Pago */}
+            {/* Botón 1: Pagar con Mercado Pago (Redirección Directa a la Pasarela Oficial) */}
             <button
               type="button"
-              onClick={() => setShowModalMercadoPago(true)}
+              onClick={async () => {
+                if (checkoutUrl) {
+                  window.location.href = checkoutUrl;
+                } else {
+                  try {
+                    const res = await fetch("/api/pagos/preferencia", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ tramiteId }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.checkoutUrl) {
+                        window.location.href = data.checkoutUrl;
+                        return;
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Error al obtener preferencia de Mercado Pago:", e);
+                  }
+                  setErrorMsg("No se pudo iniciar la pasarela de Mercado Pago. Intenta nuevamente.");
+                }
+              }}
               className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
             >
               Pagar con Mercado Pago
@@ -638,104 +659,6 @@ export default function CajeroCobroPage() {
             </span>
           </div>
         </section>
-      )}
-
-      {/* MODAL MERCADO PAGO: SELECCIÓN DE MÉTODO (TARJETA, YAPE O MIXTO) */}
-      {showModalMercadoPago && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-[#009ee3]" />
-                  Mercado Pago - Método de Cobro
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Procesando tasa de S/ 180.00 con tus credenciales oficiales de Mercado Pago MPT.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowModalMercadoPago(false)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="grid gap-3">
-              {/* Opción 1: Tarjeta con Mercado Pago */}
-              <a
-                href={checkoutUrl ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50/50 p-4 text-left transition hover:bg-sky-100/70"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#009ee3] text-white">
-                    <CreditCard size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Mercado Pago - Tarjeta de Débito / Crédito</p>
-                    <p className="text-xs text-slate-500">Paga con tarjeta a través del checkout oficial de Mercado Pago</p>
-                  </div>
-                </div>
-                <ArrowRight className="text-[#009ee3]" size={20} />
-              </a>
-
-              {/* Opción 2: Yape con Mercado Pago */}
-              <a
-                href={checkoutUrl ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-2xl border border-purple-200 bg-purple-50/50 p-4 text-left transition hover:bg-purple-100/70"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-600 text-white">
-                    <QrCode size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Mercado Pago - Yape / BCP QR</p>
-                    <p className="text-xs text-slate-500">Transferencia móvil Yape mediante pasarela de Mercado Pago</p>
-                  </div>
-                </div>
-                <ArrowRight className="text-purple-600" size={20} />
-              </a>
-
-              {/* Opción 3: Pago Mixto con Mercado Pago */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowModalMercadoPago(false);
-                  setMetodoSimulacion("MIXTO");
-                  setSubmetodoMixto("TARJETA_YAPE");
-                  setShowModalSimular(true);
-                }}
-                className="flex items-center justify-between rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 text-left transition hover:bg-indigo-100/70"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white">
-                    <Split size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Mercado Pago - Pago Mixto (Tarjeta / Yape / Mixto)</p>
-                    <p className="text-xs text-slate-500">Admite combinaciones: Tarjeta + Yape, Tarjeta + Tarjeta o Yape + Yape</p>
-                  </div>
-                </div>
-                <ArrowRight className="text-indigo-600" size={20} />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-end border-t border-slate-100 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowModalMercadoPago(false)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* MODAL PARA SELECCIONAR MÉTODO DE PAGO SIMULADO Y CALCULAR VUELTO */}
