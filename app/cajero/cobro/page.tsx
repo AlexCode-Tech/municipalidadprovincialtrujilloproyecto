@@ -1,9 +1,32 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 import { useEffect, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PageHeading } from "@/components/layout/DashboardShell";
-import { AlertCircle, ArrowLeft, CheckCircle2, Coins, CreditCard, DollarSign, LoaderCircle, Printer, User, Wallet } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Coins,
+  CreditCard,
+  DollarSign,
+  ExternalLink,
+  HelpCircle,
+  LoaderCircle,
+  Play,
+  Printer,
+  QrCode,
+  ShieldCheck,
+  Split,
+  User,
+  Wallet,
+  X,
+} from "lucide-react";
 import { CajaCerradaBlock } from "@/components/caja/CajaCerradaBlock";
 
 type Tramite = {
@@ -19,31 +42,35 @@ type Tramite = {
   };
 };
 
-type MetodoPagoUI = "EFECTIVO" | "YAPE" | "MIXTO";
-type SubmetodoMixto = "EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA";
-
 export default function CajeroCobroPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tramiteId = searchParams.get("tramiteId");
+  const tramiteId = searchParams.get("tramiteId") ?? "";
 
   const [tramite, setTramite] = useState<Tramite | null>(null);
   const [loading, setLoading] = useState(true);
   const [cajaAbierta, setCajaAbierta] = useState<boolean | null>(null);
   const [cajaLoading, setCajaLoading] = useState(true);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
-  // Estados de métodos de pago
-  const [metodo, setMetodo] = useState<MetodoPagoUI>("EFECTIVO");
-  const [submetodoMixto, setSubmetodoMixto] = useState<SubmetodoMixto>("EFECTIVO_YAPE");
+  // Estados de cobro simulado / modal
+  const [showModalSimular, setShowModalSimular] = useState(false);
+  const [metodoSimulacion, setMetodoSimulacion] = useState<"EFECTIVO" | "YAPE" | "TARJETA" | "MIXTO">("EFECTIVO");
+  const [submetodoMixto, setSubmetodoMixto] = useState<"EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA">("EFECTIVO_YAPE");
+  
   const [montoEfectivo, setMontoEfectivo] = useState("180.00");
   const [montoYape, setMontoYape] = useState("0.00");
   const [montoTarjeta, setMontoTarjeta] = useState("0.00");
   const [montoP1, setMontoP1] = useState("90.00");
   const [montoP2, setMontoP2] = useState("90.00");
-  const [mpReference, setMpReference] = useState("");
   const [lastDesglose, setLastDesglose] = useState("");
 
-  // Estado para solicitud de sencillo
+  // Estado para gestión de vuelto en Pago Mixto
+  const [vueltoModo, setVueltoModo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
+  const [vueltoEfectivoCustom, setVueltoEfectivoCustom] = useState("0.00");
+  const [vueltoYapeCustom, setVueltoYapeCustom] = useState("0.00");
+
+  // Estado de caja y solicitud de sencillo
   const [montoSencilloInput, setMontoSencilloInput] = useState("500.00");
   const [justificacionSencilloInput, setJustificacionSencilloInput] = useState("");
   const [saldoDisponibleEnCaja, setSaldoDisponibleEnCaja] = useState<number>(100.00);
@@ -55,19 +82,37 @@ export default function CajeroCobroPage() {
   const [successData, setSuccessData] = useState<{ pagoId: string; numeroFactura: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const handleDecimalInput = (val: string): string => {
+    if (!val) return "";
+    const sanitized = val.replace(",", ".");
+    const parts = sanitized.split(".");
+    if (parts.length > 1 && parts[1].length > 2) {
+      return `${parts[0]}.${parts[1].slice(0, 2)}`;
+    }
+    return sanitized;
+  };
+
+  const handleBlurFormat = (val: string, setter: (v: string) => void) => {
+    if (!val || isNaN(parseFloat(val))) return;
+    setter(parseFloat(val).toFixed(2));
+  };
+
   // Cálculo en tiempo real de desgloses y total recibido
   let eff = 0;
   let yap = 0;
   let tar = 0;
   let desgloseCalculado = "";
 
-  if (metodo === "EFECTIVO") {
+  if (metodoSimulacion === "EFECTIVO") {
     eff = parseFloat(montoEfectivo || "0") || 0;
     desgloseCalculado = `EFECTIVO (S/ ${eff.toFixed(2)})`;
-  } else if (metodo === "YAPE") {
+  } else if (metodoSimulacion === "YAPE") {
     yap = parseFloat(montoYape || "0") || 180.0;
     desgloseCalculado = `YAPE (S/ ${yap.toFixed(2)})`;
-  } else if (metodo === "MIXTO") {
+  } else if (metodoSimulacion === "TARJETA") {
+    tar = parseFloat(montoTarjeta || "0") || 180.0;
+    desgloseCalculado = `TARJETA DE DEBITO / CREDITOS (S/ 180.00)`;
+  } else if (metodoSimulacion === "MIXTO") {
     if (submetodoMixto === "EFECTIVO_YAPE") {
       eff = parseFloat(montoEfectivo || "0") || 0;
       yap = parseFloat(montoYape || "0") || 0;
@@ -108,7 +153,7 @@ export default function CajeroCobroPage() {
   useEffect(() => {
     if (!tramiteId) return;
 
-    async function cargarTramite() {
+    async function cargarDatos() {
       try {
         const res = await fetch(`/api/tramites/${tramiteId}`);
         if (!res.ok) {
@@ -121,6 +166,18 @@ export default function CajeroCobroPage() {
             setErrorMsg(`Este trámite ya se encuentra pagado o en estado: ${body.estado}.`);
           }
         }
+
+        // Cargar preferencia de Mercado Pago
+        const prefRes = await fetch("/api/pagos/preferencia", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tramiteId }),
+        }).catch(() => null);
+
+        if (prefRes && prefRes.ok) {
+          const data = await prefRes.json();
+          setCheckoutUrl(data.checkoutUrl);
+        }
       } catch (err) {
         setErrorMsg("Error al conectar con el servidor.");
       } finally {
@@ -128,7 +185,7 @@ export default function CajeroCobroPage() {
       }
     }
 
-    void cargarTramite();
+    void cargarDatos();
   }, [tramiteId]);
 
   useEffect(() => {
@@ -227,39 +284,7 @@ export default function CajeroCobroPage() {
     }
   };
 
-  useEffect(() => {
-    if (metodo === "EFECTIVO") {
-      setMontoEfectivo("180.00");
-      setMontoYape("0.00");
-      setMontoTarjeta("0.00");
-    } else if (metodo === "YAPE") {
-      setMontoEfectivo("0.00");
-      setMontoYape("180.00");
-    } else {
-      setMontoEfectivo("100.00");
-      setMontoYape("80.00");
-      setMontoTarjeta("0.00");
-      setMontoP1("90.00");
-      setMontoP2("90.00");
-    }
-  }, [metodo]);
-
-  const handleDecimalInput = (val: string): string => {
-    if (!val) return "";
-    const parts = val.split(".");
-    if (parts.length > 1 && parts[1].length > 2) {
-      return `${parts[0]}.${parts[1].slice(0, 2)}`;
-    }
-    return val;
-  };
-
-  const handleBlurFormat = (val: string, setter: (v: string) => void) => {
-    if (!val || isNaN(parseFloat(val))) return;
-    setter(parseFloat(val).toFixed(2));
-  };
-
-  const handleCobro = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEjecutarCobroSimulado = async () => {
     setErrorMsg("");
 
     if (totalRecibido < 179.99) {
@@ -281,7 +306,7 @@ export default function CajeroCobroPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             tramiteId,
-            metodo,
+            metodo: metodoSimulacion === "TARJETA" ? "TARJETA" : (metodoSimulacion === "YAPE" ? "YAPE" : (metodoSimulacion === "EFECTIVO" ? "EFECTIVO" : "MIXTO")),
             montoEfectivo: eff,
             montoYape: yap,
             montoTarjeta: tar,
@@ -296,6 +321,7 @@ export default function CajeroCobroPage() {
         if (!res.ok) {
           setErrorMsg(body.error ?? "No se pudo procesar el cobro.");
         } else {
+          setShowModalSimular(false);
           const resPago = await fetch(`/api/tramites/${tramiteId}`);
           const dataPago = await resPago.json();
           const fact = dataPago.pagos?.[0]?.numeroFactura || `F001-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -515,7 +541,7 @@ export default function CajeroCobroPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-xl">
       <div className="mb-5">
         <button
           onClick={() => router.back()}
@@ -526,10 +552,13 @@ export default function CajeroCobroPage() {
         </button>
       </div>
 
-      <PageHeading
-        title="Registrar Cobro Presencial"
-        description="Ingresa el desglose del cobro presencial (Efectivo, YAPE, Mercado Pago o Combinación Mixta) para activar el trámite."
-      />
+      <div className="mb-7 text-center sm:text-left">
+        <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[var(--blue)]">Pasarela de Pago Municipal</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl font-sans">Pago de tu Trámite</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Selecciona tu método preferido para completar la tasa de tu Licencia de Funcionamiento.
+        </p>
+      </div>
 
       {errorMsg && (
         <div className="mb-6 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 animate-in fade-in" role="alert">
@@ -539,412 +568,466 @@ export default function CajeroCobroPage() {
       )}
 
       {tramite && (
-        <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
-          {/* Detalles del Negocio */}
-          <div className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-[var(--navy)] border-b border-[var(--border)] pb-2 flex items-center gap-2">
-              <User size={18} className="text-[var(--blue)]" />
-              Detalles del Trámite
-            </h3>
-            <div className="text-sm space-y-2.5">
-              <div>
-                <p className="text-xs text-[var(--muted)]">Código Trámite</p>
-                <p className="font-bold text-slate-800">{tramite.codigo}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--muted)]">Razón Social</p>
-                <p className="font-semibold text-slate-800">{tramite.negocio.razonSocial}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--muted)]">RUC</p>
-                <p className="font-mono text-slate-800">{tramite.negocio.ruc}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--muted)] font-medium">Dirección del Local a Licenciar (Sucursal)</p>
-                <p className="text-slate-800 font-bold leading-5">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--muted)] font-medium">Domicilio Fiscal (SUNAT)</p>
-                <p className="text-slate-600 leading-5 text-xs">{tramite.negocio.domicilioFiscal}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--muted)]">Tipo de Trámite</p>
-                <p className="font-semibold text-slate-800 uppercase text-xs">{tramite.tipoTramite}</p>
+        <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-100 sm:p-8 space-y-6">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600" />
+
+          <div className="flex items-center justify-between border-b border-slate-100 pb-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Concepto de pago</p>
+              <p className="mt-1 font-bold text-slate-800">Licencia de Funcionamiento</p>
+              <p className="text-xs text-[var(--blue)] font-mono font-semibold mt-1">Trámite ID: {tramite.codigo}</p>
+            </div>
+            <div className="text-right">
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+                Monto a Pagar
+              </span>
+              <p className="mt-1 text-3xl font-black text-slate-900">S/ 180.00</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-xs text-slate-700">
+            <p className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+              <User size={16} className="text-blue-600" /> Detalles del Contribuyente
+            </p>
+            <p><strong>Razón Social:</strong> {tramite.negocio.razonSocial}</p>
+            <p><strong>RUC:</strong> {tramite.negocio.ruc}</p>
+            <p><strong>Dirección del Local a Licenciar (Sucursal):</strong> <span className="font-bold text-blue-900">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</span></p>
+            <p><strong>Domicilio Fiscal (SUNAT):</strong> {tramite.negocio.domicilioFiscal}</p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+            <div className="flex gap-3">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
+              <div className="text-xs text-slate-600 leading-relaxed">
+                <p className="font-semibold text-slate-800">Métodos disponibles para pruebas</p>
+                <p className="mt-0.5">
+                  Puedes realizar el pago real a través del sandbox de Mercado Pago o simular el éxito instantáneamente usando la herramienta local de desarrollo.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Formulario de Pago */}
-          <div className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
-            <h3 className="text-base font-bold text-[var(--navy)] border-b border-[var(--border)] pb-2 flex items-center gap-2">
-              <DollarSign size={18} className="text-[var(--blue)]" />
-              Desglose de Cobro (Tasa S/ 180.00)
-            </h3>
+          <div className="space-y-3">
+            {/* Botón 1: Pagar con Mercado Pago */}
+            <a
+              href={checkoutUrl ?? "#"}
+              className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
+            >
+              Pagar con Mercado Pago
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </a>
 
-            <form onSubmit={handleCobro} className="mt-5 space-y-4">
+            {/* Botón 2: Abrir modal de Simulación de Pago Presencial */}
+            <button
+              onClick={() => setShowModalSimular(true)}
+              className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-50 transition-all hover:bg-emerald-800 hover:shadow-xl active:scale-[0.98]"
+            >
+              <Play className="h-5 w-5 fill-current" />
+              Simular Pago (Sin Mercado Pago)
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center gap-6 border-t border-slate-100 pt-5 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <HelpCircle className="h-3.5 w-3.5" /> ¿Necesitas ayuda?
+            </span>
+            <span className="flex items-center gap-1.5">
+              <ExternalLink className="h-3.5 w-3.5" /> Términos y condiciones
+            </span>
+          </div>
+        </section>
+      )}
+
+      {/* MODAL PARA SELECCIONAR MÉTODO DE PAGO SIMULADO Y CALCULAR VUELTO */}
+      {showModalSimular && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div>
-                <label className="text-sm font-semibold block mb-2">Método de Pago</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMetodo("EFECTIVO")}
-                    className={`h-11 rounded-xl text-xs font-bold border flex items-center justify-center gap-1 transition ${
-                      metodo === "EFECTIVO"
-                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Play className="h-5 w-5 text-emerald-600 fill-current" />
+                  Selecciona Método de Pago Simulado
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Elige la modalidad para emitir el comprobante y calcular vuelto.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowModalSimular(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Opciones de Método de Pago Simulado */}
+            <div className="grid gap-3">
+              {/* Opción 1: Efectivo */}
+              <button
+                type="button"
+                onClick={() => setMetodoSimulacion("EFECTIVO")}
+                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                  metodoSimulacion === "EFECTIVO"
+                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "EFECTIVO" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                    <Coins size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">Pago en Efectivo</p>
+                    <p className="text-xs text-slate-500">Cobro presencial en caja con entrega de vuelto</p>
+                  </div>
+                </div>
+                {metodoSimulacion === "EFECTIVO" && <Check className="text-emerald-600" size={20} />}
+              </button>
+
+              {/* Opción 2: Tarjeta */}
+              <button
+                type="button"
+                onClick={() => setMetodoSimulacion("TARJETA")}
+                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                  metodoSimulacion === "TARJETA"
+                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "TARJETA" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                    <CreditCard size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">Tarjeta de Débito / Crédito</p>
+                    <p className="text-xs text-slate-500">Pago exacto S/ 180.00 con tarjeta bancaria</p>
+                  </div>
+                </div>
+                {metodoSimulacion === "TARJETA" && <Check className="text-emerald-600" size={20} />}
+              </button>
+
+              {/* Opción 3: Yape / BCP */}
+              <button
+                type="button"
+                onClick={() => setMetodoSimulacion("YAPE")}
+                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                  metodoSimulacion === "YAPE"
+                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "YAPE" ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                    <QrCode size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">Yape / BCP QR</p>
+                    <p className="text-xs text-slate-500">Pago exacto S/ 180.00 por transferencia móvil Yape</p>
+                  </div>
+                </div>
+                {metodoSimulacion === "YAPE" && <Check className="text-emerald-600" size={20} />}
+              </button>
+
+              {/* Opción 4: Pago Mixto */}
+              <button
+                type="button"
+                onClick={() => setMetodoSimulacion("MIXTO")}
+                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                  metodoSimulacion === "MIXTO"
+                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "MIXTO" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                    <Split size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">Pago Mixto con Vuelto (Tarjeta + Yape + Efectivo)</p>
+                    <p className="text-xs text-slate-500">Permite montos mayores para calcular el vuelto en caja o Yape</p>
+                  </div>
+                </div>
+                {metodoSimulacion === "MIXTO" && <Check className="text-emerald-600" size={20} />}
+              </button>
+            </div>
+
+            {/* Inputs dinámicos para Efectivo o Pago Mixto */}
+            {metodoSimulacion === "EFECTIVO" && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Dinero Recibido en Efectivo (S/)
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="180"
+                    value={montoEfectivo}
+                    onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
+                    onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
+                    className="mt-1.5 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-emerald-600"
+                    required
+                  />
+                </label>
+                <p className="text-xs text-slate-500 text-right">Tasa oficial: <strong>S/ 180.00</strong></p>
+              </div>
+            )}
+
+            {metodoSimulacion === "MIXTO" && (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-4 animate-in fade-in">
+                <div>
+                  <label className="text-xs font-bold text-indigo-900 block mb-1">
+                    Combinación de Pago Mixto:
+                  </label>
+                  <select
+                    value={submetodoMixto}
+                    onChange={(e) => setSubmetodoMixto(e.target.value as any)}
+                    className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600"
                   >
-                    <Coins size={14} />
-                    Efectivo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMetodo("YAPE")}
-                    className={`h-11 rounded-xl text-xs font-bold border flex items-center justify-center gap-1 transition ${
-                      metodo === "YAPE"
-                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <CreditCard size={14} />
-                    YAPE
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMetodo("MIXTO")}
-                    className={`h-11 rounded-xl text-xs font-bold border flex items-center justify-center gap-1 transition ${
-                      metodo === "MIXTO"
-                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <ArrowLeft size={14} />
-                    Mixto
-                  </button>
+                    <option value="EFECTIVO_YAPE">💵 + 📱 Efectivo y YAPE</option>
+                    <option value="YAPE_YAPE">📱 + 📱 YAPE y YAPE (Dos transacciones YAPE)</option>
+                    <option value="TARJETA_YAPE">💳 + 📱 Tarjeta y YAPE</option>
+                    <option value="TARJETA_TARJETA">💳 + 💳 Tarjeta y Tarjeta (Dos tarjetas)</option>
+                    <option value="EFECTIVO_TARJETA">💵 + 💳 Efectivo y Tarjeta</option>
+                  </select>
+                </div>
+
+                {submetodoMixto === "EFECTIVO_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto Efectivo (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoEfectivo}
+                        onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto YAPE (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoYape}
+                        onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {submetodoMixto === "YAPE_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto YAPE 1 (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP1}
+                        onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto YAPE 2 (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP2}
+                        onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {submetodoMixto === "TARJETA_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto Tarjeta (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoTarjeta}
+                        onChange={(e) => setMontoTarjeta(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoTarjeta, setMontoTarjeta)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto YAPE (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoYape}
+                        onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {submetodoMixto === "TARJETA_TARJETA" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto Tarjeta 1 (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP1}
+                        onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto Tarjeta 2 (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP2}
+                        onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {submetodoMixto === "EFECTIVO_TARJETA" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto Efectivo (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoEfectivo}
+                        onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Monto Tarjeta (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoTarjeta}
+                        onChange={(e) => setMontoTarjeta(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoTarjeta, setMontoTarjeta)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between border-t border-indigo-100 pt-3 text-xs">
+                  <span className="text-slate-600 font-medium">Total Recibido:</span>
+                  <span className="font-bold text-slate-900">S/ {totalRecibido.toFixed(2)}</span>
                 </div>
               </div>
+            )}
 
-              {metodo === "MIXTO" ? (
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Selecciona la Combinación de Pago Mixto:
-                    </label>
-                    <select
-                      value={submetodoMixto}
-                      onChange={(e) => setSubmetodoMixto(e.target.value as SubmetodoMixto)}
-                      className="h-10 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
-                    >
-                      <option value="EFECTIVO_YAPE">💵 + 📱 Efectivo y YAPE</option>
-                      <option value="YAPE_YAPE">📱 + 📱 YAPE y YAPE (Dos transacciones YAPE)</option>
-                      <option value="TARJETA_YAPE">💳 + 📱 Tarjeta y YAPE</option>
-                      <option value="TARJETA_TARJETA">💳 + 💳 Tarjeta y Tarjeta (Dos tarjetas)</option>
-                      <option value="EFECTIVO_TARJETA">💵 + 💳 Efectivo y Tarjeta</option>
-                    </select>
-                  </div>
-
-                  {submetodoMixto === "EFECTIVO_YAPE" && (
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto Efectivo (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoEfectivo}
-                          onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto YAPE (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoYape}
-                          onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {submetodoMixto === "YAPE_YAPE" && (
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto YAPE 1 (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoP1}
-                          onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto YAPE 2 (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoP2}
-                          onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {submetodoMixto === "TARJETA_YAPE" && (
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto Tarjeta (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoTarjeta}
-                          onChange={(e) => setMontoTarjeta(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoTarjeta, setMontoTarjeta)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto YAPE (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoYape}
-                          onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {submetodoMixto === "TARJETA_TARJETA" && (
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto Tarjeta 1 (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoP1}
-                          onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto Tarjeta 2 (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoP2}
-                          onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {submetodoMixto === "EFECTIVO_TARJETA" && (
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto Efectivo (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoEfectivo}
-                          onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                      <label className="text-xs font-bold text-slate-600 block">
-                        Monto Tarjeta (S/)
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={montoTarjeta}
-                          onChange={(e) => setMontoTarjeta(handleDecimalInput(e.target.value))}
-                          onBlur={() => handleBlurFormat(montoTarjeta, setMontoTarjeta)}
-                          className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                          required
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  <div className="text-center text-xs text-slate-500 mt-1 border-t border-slate-200 pt-2 flex items-center justify-between">
-                    <span>Desglose: <strong>{desgloseCalculado}</strong></span>
-                    <span className="font-extrabold text-slate-800 text-sm">
-                      Total: S/ {totalRecibido.toFixed(2)}
-                    </span>
-                  </div>
+            {/* SECCIÓN DE CÁLCULO DE VUELTO & VALIDACIÓN DE CAJA */}
+            {vueltoCalculadoTotal > 0 && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+                  <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                    <Check size={16} className="text-emerald-600" />
+                    Vuelto Total a Entregar:
+                  </span>
+                  <span className="text-base font-black text-emerald-700">
+                    S/ {vueltoCalculadoTotal.toFixed(2)}
+                  </span>
                 </div>
-              ) : metodo === "EFECTIVO" ? (
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
-                  <label className="text-xs font-bold text-slate-600 block">
-                    Dinero Recibido en Efectivo (S/)
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="180"
-                      value={montoEfectivo}
-                      onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
-                      onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
-                      className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold outline-none focus:border-blue-500 text-slate-900"
-                      required
-                    />
-                  </label>
-                  <div className="text-right text-xs text-slate-500">
-                    Tasa oficial: <span className="font-bold text-slate-800">S/ 180.00</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
-                  <label className="text-xs font-bold text-slate-600 block">
-                    Monto Recibido por YAPE (S/)
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="180"
-                      value={montoYape}
-                      onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
-                      onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
-                      className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold outline-none focus:border-blue-500 text-slate-900"
-                      required
-                    />
-                  </label>
-                  <div className="text-right text-xs text-slate-500">
-                    Tasa oficial: <span className="font-bold text-slate-800">S/ 180.00</span>
-                  </div>
-                </div>
-              )}
 
-              {/* SECCIÓN DE CÁLCULO DE VUELTO & VALIDACIÓN DE CAJA */}
-              {vueltoCalculadoTotal > 0 && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3.5 animate-in fade-in">
-                  <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
-                    <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                      <CheckCircle2 size={16} className="text-emerald-600" />
-                      Vuelto Total a Entregar:
-                    </span>
-                    <span className="text-base font-black text-emerald-700">
-                      S/ {vueltoCalculadoTotal.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-200">
-                    <span className="font-bold text-emerald-900">Modalidad de Entrega del Vuelto:</span>
-                    <span className="font-extrabold text-emerald-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-300">
-                      💵 Efectivo (S/ {vueltoCalculadoTotal.toFixed(2)})
-                    </span>
-                  </div>
-
-                  {vueltoEfectivoCalculado > saldoDisponibleEnCaja && (
-                    <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-3.5 animate-in fade-in">
-                      <div className="flex items-start gap-2 text-amber-900 border-b border-amber-200/80 pb-2.5">
-                        <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
-                        <div className="text-xs">
-                          <p className="font-bold text-amber-950">Saldo Insuficiente en Caja del Cajero</p>
-                          <p className="mt-0.5 text-amber-900 leading-snug">
-                            El vuelto en efectivo (<strong>S/ {vueltoEfectivoCalculado.toFixed(2)}</strong>) supera el saldo disponible en tu caja (<strong>S/ {saldoDisponibleEnCaja.toFixed(2)}</strong>).
-                          </p>
-                        </div>
+                {vueltoEfectivoCalculado > saldoDisponibleEnCaja && (
+                  <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-3 animate-in fade-in">
+                    <div className="flex items-start gap-2 text-amber-900">
+                      <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
+                      <div className="text-xs">
+                        <p className="font-bold">Saldo Insuficiente en Caja del Cajero</p>
+                        <p className="mt-0.5">
+                          El vuelto en efectivo (<strong>S/ {vueltoEfectivoCalculado.toFixed(2)}</strong>) supera el dinero disponible en caja (<strong>S/ {saldoDisponibleEnCaja.toFixed(2)}</strong>).
+                        </p>
                       </div>
-
-                      {sencilloEnviado ? (
-                        <div className="rounded-xl bg-amber-100 p-3 text-center border border-amber-300 animate-pulse space-y-1">
-                          <p className="text-xs font-extrabold text-amber-950 flex items-center justify-center gap-1.5">
-                            <LoaderCircle size={16} className="animate-spin text-amber-700" />
-                            ⌛ Solicitud de Sencillo Enviada (S/ {parseFloat(montoSencilloInput || "0").toFixed(2)})
-                          </p>
-                          <p className="text-[11px] text-amber-800">
-                            En espera de aprobación por el Administrador MPT para transferir dinero desde Tesorería.
-                          </p>
-                        </div>
-                      ) : estadoSencilloStatus === "RECHAZADO" ? (
-                        <div className="rounded-xl bg-red-100 p-2.5 text-xs font-bold text-red-800 text-center">
-                          ❌ Solicitud de Sencillo Rechazada por el Administrador. Ajusta los montos.
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="text-xs font-bold text-amber-950">
-                            Completa los datos para solicitar sencillo al Administrador MPT:
-                          </p>
-                          <div>
-                            <label className="block text-[11px] font-bold text-amber-900 mb-1">
-                              Monto de Sencillo a Solicitar (S/)
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="1"
-                              value={montoSencilloInput}
-                              onChange={(e) => setMontoSencilloInput(handleDecimalInput(e.target.value))}
-                              className="h-9 w-full rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold outline-none focus:border-amber-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-amber-900 mb-1">
-                              Justificación / Motivo para el Administrador
-                            </label>
-                            <input
-                              type="text"
-                              value={justificacionSencilloInput}
-                              onChange={(e) => setJustificacionSencilloInput(e.target.value)}
-                              className="h-9 w-full rounded-lg border border-amber-300 bg-white px-3 text-xs font-semibold outline-none focus:border-amber-500"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => void handlePedirSencillo()}
-                            disabled={solicitandoSencillo}
-                            className="w-full h-9 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                          >
-                            {solicitandoSencillo ? <LoaderCircle size={14} className="animate-spin" /> : null}
-                            Solicitar Sencillo a Tesorería MPT
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  )}
-                </div>
-              )}
 
+                    {sencilloEnviado ? (
+                      <div className="rounded-xl bg-amber-100 p-3 text-center border border-amber-300 animate-pulse">
+                        <p className="text-xs font-extrabold text-amber-900 flex items-center justify-center gap-1.5">
+                          <LoaderCircle size={16} className="animate-spin text-amber-700" />
+                          ⌛ Solicitud de Sencillo Enviada
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handlePedirSencillo}
+                        disabled={solicitandoSencillo}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+                      >
+                        <Coins size={16} />
+                        {solicitandoSencillo ? "Enviando..." : "Solicitar Sencillo a Tesorería MPT"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Acciones del Modal */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
               <button
-                type="submit"
-                disabled={pending || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
-                className="w-full h-12 rounded-xl bg-[var(--blue)] hover:bg-[var(--blue-hover)] text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => setShowModalSimular(false)}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
               >
-                {pending ? <LoaderCircle className="animate-spin" size={18} /> : null}
-                Confirmar y Registrar Pago (Factura)
+                Cancelar
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={handleEjecutarCobroSimulado}
+                disabled={pending || totalRecibido < 179.99 || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+              >
+                {pending ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Procesando cobro...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Confirmar y Registrar Pago
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
