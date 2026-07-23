@@ -325,17 +325,34 @@ function PagoContent() {
 
             <div className="space-y-3">
               {/* Botón 1: Pagar con Mercado Pago */}
+              {/* Botón 1: Pagar con Mercado Pago (Web Directo) */}
               <a
                 href={checkoutUrl ?? "#"}
                 className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
               >
-                Pagar con Mercado Pago
+                Pagar con Mercado Pago (Checkout Web Directo)
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </a>
 
-              {/* Botón 2: Abrir modal de Simulación de Pago */}
+              {/* Botón 2: Pago Mixto Mercado Pago */}
               <button
-                onClick={() => setShowModalSimular(true)}
+                type="button"
+                onClick={() => {
+                  setMetodoSimulacion("MIXTO");
+                  setShowModalSimular(true);
+                }}
+                className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-indigo-600 px-6 py-4 text-base font-bold text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 hover:shadow-xl active:scale-[0.98]"
+              >
+                <Split className="h-5 w-5" />
+                Pago Mixto Mercado Pago (Tarjeta / Yape / Dos Tarjetas)
+              </button>
+
+              {/* Botón 3: Abrir modal de Simulación de Pago */}
+              <button
+                onClick={() => {
+                  setMetodoSimulacion("TARJETA");
+                  setShowModalSimular(true);
+                }}
                 disabled={simulando}
                 className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-50 transition-all hover:bg-emerald-800 hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
