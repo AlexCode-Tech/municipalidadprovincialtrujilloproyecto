@@ -53,10 +53,12 @@ export default function CajeroCobroPage() {
   const [cajaLoading, setCajaLoading] = useState(true);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
-  // Estados de cobro simulado / modal
-  const [showModalSimular, setShowModalSimular] = useState(false);
-  const [metodoSimulacion, setMetodoSimulacion] = useState<"EFECTIVO" | "YAPE" | "TARJETA" | "MIXTO">("EFECTIVO");
-  const [submetodoMixto, setSubmetodoMixto] = useState<"EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA">("TARJETA_YAPE");
+  // Estados de modal y modo (MERCADO_PAGO vs SIMULADO)
+  const [showModal, setShowModal] = useState(false);
+  const [modalModo, setModalModo] = useState<"MERCADO_PAGO" | "SIMULADO">("MERCADO_PAGO");
+  
+  const [metodoSimulacion, setMetodoSimulacion] = useState<"EFECTIVO" | "YAPE" | "TARJETA" | "MIXTO">("MIXTO");
+  const [submetodoMixto, setSubmetodoMixto] = useState<"TARJETA_YAPE" | "TARJETA_TARJETA" | "YAPE_YAPE" | "EFECTIVO_YAPE" | "EFECTIVO_TARJETA">("TARJETA_YAPE");
   
   const [montoEfectivo, setMontoEfectivo] = useState("180.00");
   const [montoYape, setMontoYape] = useState("0.00");
@@ -103,38 +105,40 @@ export default function CajeroCobroPage() {
   let tar = 0;
   let desgloseCalculado = "";
 
+  const prefixMP = modalModo === "MERCADO_PAGO" ? "MERCADO PAGO" : "COBRO PRESENCIAL";
+
   if (metodoSimulacion === "EFECTIVO") {
     eff = parseFloat(montoEfectivo || "0") || 0;
-    desgloseCalculado = `EFECTIVO (S/ ${eff.toFixed(2)})`;
+    desgloseCalculado = `${prefixMP}: EFECTIVO (S/ ${eff.toFixed(2)})`;
   } else if (metodoSimulacion === "YAPE") {
     yap = parseFloat(montoYape || "0") || 180.0;
-    desgloseCalculado = `YAPE (S/ ${yap.toFixed(2)})`;
+    desgloseCalculado = `${prefixMP}: YAPE (S/ ${yap.toFixed(2)})`;
   } else if (metodoSimulacion === "TARJETA") {
     tar = parseFloat(montoTarjeta || "0") || 180.0;
-    desgloseCalculado = `TARJETA DE DEBITO / CREDITOS (S/ 180.00)`;
+    desgloseCalculado = `${prefixMP}: TARJETA DE DEBITO / CREDITO (S/ 180.00)`;
   } else if (metodoSimulacion === "MIXTO") {
     if (submetodoMixto === "EFECTIVO_YAPE") {
       eff = parseFloat(montoEfectivo || "0") || 0;
       yap = parseFloat(montoYape || "0") || 0;
-      desgloseCalculado = `EFECTIVO / YAPE (S/ ${eff.toFixed(2)} + S/ ${yap.toFixed(2)})`;
+      desgloseCalculado = `${prefixMP} MIXTO: EFECTIVO / YAPE (S/ ${eff.toFixed(2)} + S/ ${yap.toFixed(2)})`;
     } else if (submetodoMixto === "YAPE_YAPE") {
       const p1 = parseFloat(montoP1 || "0") || 0;
       const p2 = parseFloat(montoP2 || "0") || 0;
       yap = Math.round((p1 + p2) * 100) / 100;
-      desgloseCalculado = `MERCADO PAGO MIXTO: YAPE / YAPE (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
+      desgloseCalculado = `${prefixMP} MIXTO: YAPE / YAPE (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
     } else if (submetodoMixto === "TARJETA_YAPE") {
       tar = parseFloat(montoTarjeta || "0") || 0;
       yap = parseFloat(montoYape || "0") || 0;
-      desgloseCalculado = `MERCADO PAGO MIXTO: TARJETA / YAPE (S/ ${tar.toFixed(2)} + S/ ${yap.toFixed(2)})`;
+      desgloseCalculado = `${prefixMP} MIXTO: TARJETA / YAPE (S/ ${tar.toFixed(2)} + S/ ${yap.toFixed(2)})`;
     } else if (submetodoMixto === "TARJETA_TARJETA") {
       const p1 = parseFloat(montoP1 || "0") || 0;
       const p2 = parseFloat(montoP2 || "0") || 0;
       tar = Math.round((p1 + p2) * 100) / 100;
-      desgloseCalculado = `MERCADO PAGO MIXTO: TARJETA / TARJETA (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
+      desgloseCalculado = `${prefixMP} MIXTO: TARJETA / TARJETA (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
     } else if (submetodoMixto === "EFECTIVO_TARJETA") {
       eff = parseFloat(montoEfectivo || "0") || 0;
       tar = parseFloat(montoTarjeta || "0") || 0;
-      desgloseCalculado = `EFECTIVO / TARJETA (S/ ${eff.toFixed(2)} + S/ ${tar.toFixed(2)})`;
+      desgloseCalculado = `${prefixMP} MIXTO: EFECTIVO / TARJETA (S/ ${eff.toFixed(2)} + S/ ${tar.toFixed(2)})`;
     }
   }
 
@@ -284,7 +288,7 @@ export default function CajeroCobroPage() {
     }
   };
 
-  const handleEjecutarCobroSimulado = async () => {
+  const handleEjecutarCobroModal = async () => {
     setErrorMsg("");
 
     if (totalRecibido < 179.99) {
@@ -321,7 +325,7 @@ export default function CajeroCobroPage() {
         if (!res.ok) {
           setErrorMsg(body.error ?? "No se pudo procesar el cobro.");
         } else {
-          setShowModalSimular(false);
+          setShowModal(false);
           const resPago = await fetch(`/api/tramites/${tramiteId}`);
           const dataPago = await resPago.json();
           const fact = dataPago.pagos?.[0]?.numeroFactura || `F001-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -608,18 +612,32 @@ export default function CajeroCobroPage() {
           </div>
 
           <div className="space-y-3">
-            {/* Botón 1: Pagar con Mercado Pago */}
-            <a
-              href={checkoutUrl ?? "#"}
+            {/* Botón 1: Pagar con Mercado Pago (Abre el Modal Interactivo de Mercado Pago) */}
+            <button
+              onClick={() => {
+                setModalModo("MERCADO_PAGO");
+                setMetodoSimulacion("MIXTO");
+                setSubmetodoMixto("TARJETA_YAPE");
+                setMontoTarjeta("90.00");
+                setMontoYape("90.00");
+                setMontoP1("90.00");
+                setMontoP2("90.00");
+                setShowModal(true);
+              }}
               className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
             >
               Pagar con Mercado Pago
               <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </a>
+            </button>
 
             {/* Botón 2: Abrir modal de Simulación de Pago Presencial */}
             <button
-              onClick={() => setShowModalSimular(true)}
+              onClick={() => {
+                setModalModo("SIMULADO");
+                setMetodoSimulacion("EFECTIVO");
+                setMontoEfectivo("180.00");
+                setShowModal(true);
+              }}
               className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-50 transition-all hover:bg-emerald-800 hover:shadow-xl active:scale-[0.98]"
             >
               <Play className="h-5 w-5 fill-current" />
@@ -638,117 +656,181 @@ export default function CajeroCobroPage() {
         </section>
       )}
 
-      {/* MODAL PARA SELECCIONAR MÉTODO DE PAGO SIMULADO Y CALCULAR VUELTO */}
-      {showModalSimular && (
+      {/* MODAL INTERACTIVO DE PAGO (MERCADO PAGO Y SIMULADO) */}
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Play className="h-5 w-5 text-emerald-600 fill-current" />
-                  Selecciona Método de Pago Simulado
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Elige la modalidad para emitir el comprobante y calcular vuelto.
-                </p>
+                {modalModo === "MERCADO_PAGO" ? (
+                  <>
+                    <h3 className="text-lg font-extrabold text-[#009ee3] flex items-center gap-2">
+                      <Wallet className="h-5 w-5 text-[#009ee3]" />
+                      Pasarela Mercado Pago (Tarjeta, Yape o Mixto)
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Selecciona tu modalidad de pago único o combinado en Mercado Pago.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Play className="h-5 w-5 text-emerald-600 fill-current" />
+                      Selecciona Método de Pago Simulado
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Elige la modalidad para emitir el comprobante y calcular vuelto.
+                    </p>
+                  </>
+                )}
               </div>
               <button
-                onClick={() => setShowModalSimular(false)}
+                onClick={() => setShowModal(false)}
                 className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Opciones de Método de Pago Simulado */}
+            {/* Opciones del Modal */}
             <div className="grid gap-3">
-              {/* Opción 1: Efectivo */}
-              <button
-                type="button"
-                onClick={() => setMetodoSimulacion("EFECTIVO")}
-                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
-                  metodoSimulacion === "EFECTIVO"
-                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
-                    : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "EFECTIVO" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
-                    <Coins size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Pago en Efectivo</p>
-                    <p className="text-xs text-slate-500">Cobro presencial en caja con entrega de vuelto</p>
-                  </div>
-                </div>
-                {metodoSimulacion === "EFECTIVO" && <Check className="text-emerald-600" size={20} />}
-              </button>
+              {modalModo === "MERCADO_PAGO" ? (
+                <>
+                  {/* Opción MP 1: Pago Mixto */}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoSimulacion("MIXTO")}
+                    className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                      metodoSimulacion === "MIXTO"
+                        ? "border-[#009ee3] bg-sky-50/70 ring-2 ring-sky-500/20"
+                        : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "MIXTO" ? "bg-[#009ee3] text-white" : "bg-slate-100 text-slate-600"}`}>
+                        <Split size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Mercado Pago Mixto (Tarjeta / Yape)</p>
+                        <p className="text-xs text-slate-500">Combina: Tarjeta + Yape, Tarjeta + Tarjeta, Yape + Yape</p>
+                      </div>
+                    </div>
+                    {metodoSimulacion === "MIXTO" && <Check className="text-[#009ee3]" size={20} />}
+                  </button>
 
-              {/* Opción 2: Tarjeta */}
-              <button
-                type="button"
-                onClick={() => setMetodoSimulacion("TARJETA")}
-                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
-                  metodoSimulacion === "TARJETA"
-                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
-                    : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "TARJETA" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
-                    <CreditCard size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Tarjeta de Débito / Crédito</p>
-                    <p className="text-xs text-slate-500">Pago exacto S/ 180.00 con tarjeta bancaria</p>
-                  </div>
-                </div>
-                {metodoSimulacion === "TARJETA" && <Check className="text-emerald-600" size={20} />}
-              </button>
+                  {/* Opción MP 2: Tarjeta Directa */}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoSimulacion("TARJETA")}
+                    className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                      metodoSimulacion === "TARJETA"
+                        ? "border-[#009ee3] bg-sky-50/70 ring-2 ring-sky-500/20"
+                        : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "TARJETA" ? "bg-[#009ee3] text-white" : "bg-slate-100 text-slate-600"}`}>
+                        <CreditCard size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Mercado Pago: Tarjeta Débito / Crédito</p>
+                        <p className="text-xs text-slate-500">Pago único total S/ 180.00 con tarjeta bancaria</p>
+                      </div>
+                    </div>
+                    {metodoSimulacion === "TARJETA" && <Check className="text-[#009ee3]" size={20} />}
+                  </button>
 
-              {/* Opción 3: Yape / BCP */}
-              <button
-                type="button"
-                onClick={() => setMetodoSimulacion("YAPE")}
-                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
-                  metodoSimulacion === "YAPE"
-                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
-                    : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "YAPE" ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-600"}`}>
-                    <QrCode size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Yape / BCP QR</p>
-                    <p className="text-xs text-slate-500">Pago exacto S/ 180.00 por transferencia móvil Yape</p>
-                  </div>
-                </div>
-                {metodoSimulacion === "YAPE" && <Check className="text-emerald-600" size={20} />}
-              </button>
+                  {/* Opción MP 3: Yape Directo */}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoSimulacion("YAPE")}
+                    className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                      metodoSimulacion === "YAPE"
+                        ? "border-[#009ee3] bg-sky-50/70 ring-2 ring-sky-500/20"
+                        : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "YAPE" ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                        <QrCode size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Mercado Pago: Yape / QR</p>
+                        <p className="text-xs text-slate-500">Pago único total S/ 180.00 con aplicación Yape</p>
+                      </div>
+                    </div>
+                    {metodoSimulacion === "YAPE" && <Check className="text-[#009ee3]" size={20} />}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Opción Simular 1: Efectivo */}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoSimulacion("EFECTIVO")}
+                    className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                      metodoSimulacion === "EFECTIVO"
+                        ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                        : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "EFECTIVO" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                        <Coins size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Pago en Efectivo</p>
+                        <p className="text-xs text-slate-500">Cobro presencial en caja con entrega de vuelto</p>
+                      </div>
+                    </div>
+                    {metodoSimulacion === "EFECTIVO" && <Check className="text-emerald-600" size={20} />}
+                  </button>
 
-              {/* Opción 4: Pago Mixto Mercado Pago / Pasarela */}
-              <button
-                type="button"
-                onClick={() => setMetodoSimulacion("MIXTO")}
-                className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
-                  metodoSimulacion === "MIXTO"
-                    ? "border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-500/20"
-                    : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "MIXTO" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}`}>
-                    <Split size={20} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Pago Mixto Mercado Pago (Tarjeta / Yape)</p>
-                    <p className="text-xs text-slate-500">Admite combinaciones: Tarjeta + Yape, Tarjeta + Tarjeta, Yape + Yape o Efectivo</p>
-                  </div>
-                </div>
-                {metodoSimulacion === "MIXTO" && <Check className="text-indigo-600" size={20} />}
-              </button>
+                  {/* Opción Simular 2: Tarjeta */}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoSimulacion("TARJETA")}
+                    className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                      metodoSimulacion === "TARJETA"
+                        ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                        : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "TARJETA" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                        <CreditCard size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Tarjeta de Débito / Crédito</p>
+                        <p className="text-xs text-slate-500">Pago exacto S/ 180.00 con tarjeta bancaria</p>
+                      </div>
+                    </div>
+                    {metodoSimulacion === "TARJETA" && <Check className="text-emerald-600" size={20} />}
+                  </button>
+
+                  {/* Opción Simular 3: Yape */}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoSimulacion("YAPE")}
+                    className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                      metodoSimulacion === "YAPE"
+                        ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                        : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-10 w-10 place-items-center rounded-xl ${metodoSimulacion === "YAPE" ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                        <QrCode size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Yape / BCP QR</p>
+                        <p className="text-xs text-slate-500">Pago exacto S/ 180.00 por transferencia móvil Yape</p>
+                      </div>
+                    </div>
+                    {metodoSimulacion === "YAPE" && <Check className="text-emerald-600" size={20} />}
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Inputs dinámicos para Efectivo o Pago Mixto */}
@@ -772,15 +854,15 @@ export default function CajeroCobroPage() {
             )}
 
             {metodoSimulacion === "MIXTO" && (
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-4 animate-in fade-in">
+              <div className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4 space-y-4 animate-in fade-in">
                 <div>
-                  <label className="text-xs font-bold text-indigo-900 block mb-1">
-                    Selecciona la Combinación de Pago Mixto:
+                  <label className="text-xs font-bold text-sky-950 block mb-1">
+                    Selecciona la Combinación de Pago Mixto Mercado Pago:
                   </label>
                   <select
                     value={submetodoMixto}
                     onChange={(e) => setSubmetodoMixto(e.target.value as any)}
-                    className="h-10 w-full rounded-xl border border-indigo-300 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600"
+                    className="h-10 w-full rounded-xl border border-sky-300 bg-white px-3 text-xs font-bold text-slate-900 outline-none focus:border-sky-600"
                   >
                     <option value="TARJETA_YAPE">💳 + 📱 Mercado Pago Mixto: Tarjeta y YAPE (S/ 90.00 + S/ 90.00)</option>
                     <option value="TARJETA_TARJETA">💳 + 💳 Mercado Pago Mixto: Tarjeta y Tarjeta (Dos tarjetas bancarias)</option>
@@ -790,71 +872,9 @@ export default function CajeroCobroPage() {
                   </select>
                 </div>
 
-                {submetodoMixto === "EFECTIVO_YAPE" && (
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className="text-xs font-bold text-slate-600 block">
-                      Monto Efectivo (S/)
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={montoEfectivo}
-                        onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
-                        onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                        required
-                      />
-                    </label>
-                    <label className="text-xs font-bold text-slate-600 block">
-                      Monto YAPE (S/)
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={montoYape}
-                        onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
-                        onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                        required
-                      />
-                    </label>
-                  </div>
-                )}
-
-                {submetodoMixto === "YAPE_YAPE" && (
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className="text-xs font-bold text-slate-600 block">
-                      Monto YAPE 1 (S/)
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={montoP1}
-                        onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
-                        onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                        required
-                      />
-                    </label>
-                    <label className="text-xs font-bold text-slate-600 block">
-                      Monto YAPE 2 (S/)
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={montoP2}
-                        onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
-                        onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
-                        required
-                      />
-                    </label>
-                  </div>
-                )}
-
                 {submetodoMixto === "TARJETA_YAPE" && (
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className="text-xs font-bold text-slate-600 block">
+                    <label className="text-xs font-bold text-slate-700 block">
                       Monto Tarjeta (S/)
                       <input
                         type="number"
@@ -863,11 +883,11 @@ export default function CajeroCobroPage() {
                         value={montoTarjeta}
                         onChange={(e) => setMontoTarjeta(handleDecimalInput(e.target.value))}
                         onBlur={() => handleBlurFormat(montoTarjeta, setMontoTarjeta)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
                         required
                       />
                     </label>
-                    <label className="text-xs font-bold text-slate-600 block">
+                    <label className="text-xs font-bold text-slate-700 block">
                       Monto YAPE (S/)
                       <input
                         type="number"
@@ -876,7 +896,7 @@ export default function CajeroCobroPage() {
                         value={montoYape}
                         onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
                         onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
                         required
                       />
                     </label>
@@ -885,7 +905,7 @@ export default function CajeroCobroPage() {
 
                 {submetodoMixto === "TARJETA_TARJETA" && (
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className="text-xs font-bold text-slate-600 block">
+                    <label className="text-xs font-bold text-slate-700 block">
                       Monto Tarjeta 1 (S/)
                       <input
                         type="number"
@@ -894,11 +914,11 @@ export default function CajeroCobroPage() {
                         value={montoP1}
                         onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
                         onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
                         required
                       />
                     </label>
-                    <label className="text-xs font-bold text-slate-600 block">
+                    <label className="text-xs font-bold text-slate-700 block">
                       Monto Tarjeta 2 (S/)
                       <input
                         type="number"
@@ -907,16 +927,47 @@ export default function CajeroCobroPage() {
                         value={montoP2}
                         onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
                         onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
                         required
                       />
                     </label>
                   </div>
                 )}
 
-                {submetodoMixto === "EFECTIVO_TARJETA" && (
+                {submetodoMixto === "YAPE_YAPE" && (
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className="text-xs font-bold text-slate-600 block">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Monto YAPE 1 (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP1}
+                        onChange={(e) => setMontoP1(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoP1, setMontoP1)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Monto YAPE 2 (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoP2}
+                        onChange={(e) => setMontoP2(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoP2, setMontoP2)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {submetodoMixto === "EFECTIVO_YAPE" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-700 block">
                       Monto Efectivo (S/)
                       <input
                         type="number"
@@ -925,11 +976,42 @@ export default function CajeroCobroPage() {
                         value={montoEfectivo}
                         onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
                         onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
                         required
                       />
                     </label>
-                    <label className="text-xs font-bold text-slate-600 block">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Monto YAPE (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoYape}
+                        onChange={(e) => setMontoYape(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoYape, setMontoYape)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {submetodoMixto === "EFECTIVO_TARJETA" && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Monto Efectivo (S/)
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={montoEfectivo}
+                        onChange={(e) => setMontoEfectivo(handleDecimalInput(e.target.value))}
+                        onBlur={() => handleBlurFormat(montoEfectivo, setMontoEfectivo)}
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
+                        required
+                      />
+                    </label>
+                    <label className="text-xs font-bold text-slate-700 block">
                       Monto Tarjeta (S/)
                       <input
                         type="number"
@@ -938,21 +1020,21 @@ export default function CajeroCobroPage() {
                         value={montoTarjeta}
                         onChange={(e) => setMontoTarjeta(handleDecimalInput(e.target.value))}
                         onBlur={() => handleBlurFormat(montoTarjeta, setMontoTarjeta)}
-                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-sky-500"
                         required
                       />
                     </label>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between border-t border-indigo-100 pt-3 text-xs">
+                <div className="flex items-center justify-between border-t border-sky-200 pt-3 text-xs">
                   <span className="text-slate-600 font-medium">Total Recibido:</span>
                   <span className="font-bold text-slate-900">S/ {totalRecibido.toFixed(2)}</span>
                 </div>
               </div>
             )}
 
-            {/* SECCIÓN DE CÁLCULO DE VUELTO & VALIDACIÓN DE CAJA */}
+            {/* SECCIÓN DE CÁLCULO DE VUELTO & VALIDACIÓN DE CAJA SI HAY EFECTIVO */}
             {vueltoCalculadoTotal > 0 && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3.5 space-y-3 animate-in fade-in">
                 <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
@@ -1001,32 +1083,52 @@ export default function CajeroCobroPage() {
             )}
 
             {/* Acciones del Modal */}
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowModalSimular(false)}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleEjecutarCobroSimulado}
-                disabled={pending || totalRecibido < 179.99 || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
-              >
-                {pending ? (
-                  <>
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                    Procesando cobro...
-                  </>
-                ) : (
-                  <>
-                    <Check size={16} />
-                    Confirmar y Registrar Pago
-                  </>
-                )}
-              </button>
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEjecutarCobroModal}
+                  disabled={pending || totalRecibido < 179.99 || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
+                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50 ${
+                    modalModo === "MERCADO_PAGO"
+                      ? "bg-[#009ee3] hover:bg-[#008ed0]"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}
+                >
+                  {pending ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Procesando pago...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} />
+                      Confirmar y Procesar con {modalModo === "MERCADO_PAGO" ? "Mercado Pago" : "Caja Presencial"}
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {modalModo === "MERCADO_PAGO" && checkoutUrl && (
+                <div className="text-center pt-2 border-t border-slate-100">
+                  <a
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] font-semibold text-[#009ee3] hover:underline flex items-center justify-center gap-1"
+                  >
+                    <ExternalLink size={12} />
+                    Ir al Checkout Web Externo de Mercado Pago (`mercadopago.com.pe`)
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>

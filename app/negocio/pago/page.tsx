@@ -16,11 +16,13 @@ function PagoContent() {
   const [simulando, setSimulando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estado para el modal de simulación de pago
+  // Estado para el modal de simulación / Mercado Pago
   const [showModalSimular, setShowModalSimular] = useState(false);
-  const [metodoSimulacion, setMetodoSimulacion] = useState<"TARJETA" | "YAPE" | "MIXTO">("TARJETA");
-  const [montoTarjetaInput, setMontoTarjetaInput] = useState("100.00");
-  const [montoYapeInput, setMontoYapeInput] = useState("80.00");
+  const [modalModo, setModalModo] = useState<"MERCADO_PAGO" | "SIMULADO">("MERCADO_PAGO");
+  const [metodoSimulacion, setMetodoSimulacion] = useState<"TARJETA" | "YAPE" | "MIXTO">("MIXTO");
+  const [submetodoMixto, setSubmetodoMixto] = useState<"TARJETA_YAPE" | "TARJETA_TARJETA" | "YAPE_YAPE" | "EFECTIVO_YAPE" | "EFECTIVO_TARJETA">("TARJETA_YAPE");
+  const [montoTarjetaInput, setMontoTarjetaInput] = useState("90.00");
+  const [montoYapeInput, setMontoYapeInput] = useState("90.00");
 
   // Estado para gestión de vuelto en Pago Mixto
   const [vueltoModo, setVueltoModo] = useState<"EFECTIVO" | "YAPE" | "MIXTO">("EFECTIVO");
@@ -325,17 +327,27 @@ function PagoContent() {
 
             <div className="space-y-3">
               {/* Botón 1: Pagar con Mercado Pago */}
-              <a
-                href={checkoutUrl ?? "#"}
-                className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
+              <button
+                onClick={() => {
+                  setModalModo("MERCADO_PAGO");
+                  setMetodoSimulacion("MIXTO");
+                  setSubmetodoMixto("TARJETA_YAPE");
+                  setShowModalSimular(true);
+                }}
+                disabled={simulando}
+                className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
               >
                 Pagar con Mercado Pago
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </a>
+              </button>
 
               {/* Botón 2: Abrir modal de Simulación de Pago */}
               <button
-                onClick={() => setShowModalSimular(true)}
+                onClick={() => {
+                  setModalModo("SIMULADO");
+                  setMetodoSimulacion("TARJETA");
+                  setShowModalSimular(true);
+                }}
                 disabled={simulando}
                 className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-50 transition-all hover:bg-emerald-800 hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
