@@ -240,6 +240,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             negocioId: negocio.id,
+            direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
             tipoTramite,
             poseeCambiosEstructura: tipoTramite === "RENOVACION" && tieneCambios,
@@ -274,6 +275,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             ruc: result.data.ruc,
             razonSocial: result.data.razonSocial,
             domicilioFiscal: result.data.domicilioFiscal,
+            direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
             distrito: result.data.distrito,
             provincia: result.data.provincia,
             departamento: result.data.departamento,
@@ -472,6 +474,26 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             ) : null}
           </div>
         ) : null}
+
+        <label className="text-sm font-medium md:col-span-2">
+          Dirección del Local a Licenciar (Sucursal) <span className="text-[var(--danger)]" aria-hidden="true">*</span>
+          <input
+            className={input}
+            name="direccionTrujillo"
+            value={direccionTrujillo}
+            onChange={(e) => {
+              setDireccionTrujillo(e.target.value);
+              clearErrors("direccionTrujillo");
+            }}
+            placeholder="Ej: Jr. Pizarro 450, Av. España 1200..."
+            required
+            aria-invalid={Boolean(formErrors.direccionTrujillo)}
+          />
+          {formErrors.direccionTrujillo ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.direccionTrujillo}</span> : null}
+          <span className="mt-1 block text-xs text-slate-500 font-normal">
+            Especifica la dirección del nuevo establecimiento comercial o sucursal a licenciar en Trujillo.
+          </span>
+        </label>
 
         <label className="text-sm font-medium">
           Distrito <span className="text-[var(--danger)]" aria-hidden="true">*</span>

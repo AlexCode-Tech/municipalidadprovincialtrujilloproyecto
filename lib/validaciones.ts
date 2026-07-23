@@ -18,6 +18,7 @@ export const solicitudTramiteSchema = z.object({
   ruc: rucSchema,
   razonSocial: z.string().trim().min(3, "Consulta el RUC para obtener la razón social"),
   domicilioFiscal: z.string().trim().min(8, "Consulta el RUC para obtener el domicilio fiscal"),
+  direccionTrujillo: z.string().trim().min(5, "Ingresa la dirección del local o sucursal").optional(),
   distrito: z.string().trim().min(2, "Consulta el RUC para obtener el distrito"),
   provincia: z.string().trim().min(2, "Consulta el RUC para obtener la provincia"),
   departamento: z.string().trim().min(2, "Consulta el RUC para obtener el departamento"),
