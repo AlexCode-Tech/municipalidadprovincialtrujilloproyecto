@@ -23,6 +23,11 @@ export async function GET(
       where: { ruc: validation.data },
       include: {
         tramites: {
+          where: {
+            estado: {
+              notIn: ["BORRADOR", "PAGO_PENDIENTE", "PENDIENTE_PAGO"]
+            }
+          },
           select: {
             id: true,
             codigo: true,
@@ -41,7 +46,7 @@ export async function GET(
       localesPrevios: negocio?.tramites.map(t => ({
         id: t.id,
         codigo: t.codigo,
-        estado: t.estado === "PAGO_PENDIENTE" ? "BORRADOR" : t.estado,
+        estado: t.estado,
         direccion: t.direccionTrujillo || negocio.domicilioFiscal,
         licencia: t.licencia?.numero || null
       })) || []
