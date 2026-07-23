@@ -27,7 +27,24 @@ export async function GET(request: NextRequest) {
         },
       },
       tramites: {
-        select: { id: true, estado: true },
+        select: {
+          id: true,
+          codigo: true,
+          estado: true,
+          creadoEn: true,
+          licencia: {
+            select: {
+              id: true,
+              numero: true,
+              emitidaEn: true,
+              venceEn: true,
+            },
+          },
+          pagos: {
+            select: { fechaPago: true },
+            take: 1,
+          },
+        },
         orderBy: { creadoEn: "desc" },
         take: 1,
       },
