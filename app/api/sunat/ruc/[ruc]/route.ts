@@ -41,7 +41,7 @@ export async function GET(
       localesPrevios: negocio?.tramites.map(t => ({
         id: t.id,
         codigo: t.codigo,
-        estado: t.estado,
+        estado: t.estado === "PAGO_PENDIENTE" ? "BORRADOR" : t.estado,
         direccion: t.direccionTrujillo || negocio.domicilioFiscal,
         licencia: t.licencia?.numero || null
       })) || []

@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
         planoValidado: isRenovacion && confirmacionSinCambios ? true : (body.planoValidado === true),
         codigo,
         cajeroId,
-        estado: "PAGO_PENDIENTE",
+        estado: "BORRADOR",
         tipoTramite: (body.tipoTramite as string) || "INICIAL",
         esRenovacion: isRenovacion,
         poseeCambiosEstructura,

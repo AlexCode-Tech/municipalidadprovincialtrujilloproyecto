@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
         planoValidado: true,
         codigo,
         cajeroId,
-        estado: "PAGO_PENDIENTE",
+        estado: "BORRADOR",
       },
     });
 

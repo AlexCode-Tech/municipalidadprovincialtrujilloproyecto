@@ -464,7 +464,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
                       <span className="font-bold text-blue-800 block">{loc.codigo}</span>
                       <span className="text-slate-600 font-mono block truncate" title={loc.direccion}>{loc.direccion}</span>
                       <div className="mt-1 flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-500">Estado: {loc.estado}</span>
+                        <span className="font-semibold text-slate-500">Estado: {loc.estado === "PAGO_PENDIENTE" ? "BORRADOR" : loc.estado}</span>
                         {loc.licencia ? <span className="font-bold text-emerald-700">Lic. #{loc.licencia}</span> : null}
                       </div>
                     </div>

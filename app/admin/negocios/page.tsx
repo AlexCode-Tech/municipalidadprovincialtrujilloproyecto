@@ -23,8 +23,8 @@ type Negocio = {
 };
 
 const estadoTramiteBadge: Record<string, { label: string; className: string }> = {
-  BORRADOR: { label: "Pago Pendiente", className: "bg-amber-50 text-amber-700" },
-  PAGO_PENDIENTE: { label: "Pago Pendiente", className: "bg-amber-50 text-amber-700" },
+  BORRADOR: { label: "Borrador", className: "bg-slate-100 text-slate-700" },
+  PAGO_PENDIENTE: { label: "Borrador", className: "bg-slate-100 text-slate-700" },
   PAGO_RECHAZADO: { label: "Pago Rechazado", className: "bg-red-50 text-red-700" },
   INSPECCION_PROGRAMADA: { label: "Insp. Programada", className: "bg-blue-50 text-blue-700" },
   OBSERVADO: { label: "Observado", className: "bg-orange-50 text-orange-700" },
