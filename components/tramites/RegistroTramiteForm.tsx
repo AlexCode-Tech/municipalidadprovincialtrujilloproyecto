@@ -16,6 +16,14 @@ import {
 import { DISTRITOS_TRUJILLO } from "@/lib/distritos";
 import { solicitudTramiteSchema } from "@/lib/validaciones";
 
+type LocalPrevio = {
+  id: string;
+  codigo: string;
+  estado: string;
+  direccion: string;
+  licencia: string | null;
+};
+
 type DatosRuc = {
   razonSocial: string;
   domicilioFiscal: string;
@@ -24,6 +32,7 @@ type DatosRuc = {
   departamento?: string;
   estado?: string;
   condicion?: string;
+  localesPrevios?: LocalPrevio[];
 };
 type PlanoEstado = "idle" | "analizando" | "valido" | "invalido" | "error";
 type FormErrors = Record<string, string | undefined>;
@@ -41,6 +50,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
   const [distrito, setDistrito] = useState("");
   const [provincia, setProvincia] = useState("");
   const [departamento, setDepartamento] = useState("");
+  const [direccionTrujillo, setDireccionTrujillo] = useState("");
   const [datosRuc, setDatosRuc] = useState<DatosRuc | null>(null);
   const [consultandoRuc, setConsultandoRuc] = useState(false);
   const [errorRuc, setErrorRuc] = useState("");
@@ -66,6 +76,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
       setDistrito("");
       setProvincia("");
       setDepartamento("");
+      setDireccionTrujillo("");
       setErrorRuc("Ingresa un RUC 20 válido de 11 dígitos.");
       return;
     }
@@ -93,16 +104,19 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
         distrito: result.distrito,
         provincia: result.provincia,
         departamento: result.departamento,
+        localesPrevios: result.localesPrevios || [],
       });
       if (result.distrito) setDistrito(result.distrito);
       if (result.provincia) setProvincia(result.provincia);
       if (result.departamento) setDepartamento(result.departamento);
+      if (result.domicilioFiscal) setDireccionTrujillo(result.domicilioFiscal);
       clearErrors("ruc", "razonSocial", "domicilioFiscal", "distrito", "provincia", "departamento");
     } catch (error) {
       setDatosRuc(null);
       setDistrito("");
       setProvincia("");
       setDepartamento("");
+      setDireccionTrujillo("");
       setErrorRuc(error instanceof Error ? error.message : "No se pudo consultar el RUC.");
     } finally {
       setConsultandoRuc(false);
@@ -428,7 +442,36 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           {formErrors.domicilioFiscal ? <span className="mt-1.5 block text-xs text-[var(--danger)]" role="alert">{formErrors.domicilioFiscal}</span> : null}
         </label>
 
-        {datosRuc ? <p className="-mt-2 flex items-center gap-2 text-sm text-emerald-700 md:col-span-2" role="status"><CheckCircle2 size={17} />Datos fiscales encontrados y bloqueados para edición.</p> : null}
+        {datosRuc ? (
+          <div className="md:col-span-2 space-y-3">
+            <p className="-mt-1 flex items-center gap-2 text-sm text-emerald-700 font-medium" role="status">
+              <CheckCircle2 size={17} /> Datos fiscales SUNAT encontrados correctamente.
+            </p>
+
+            {datosRuc.localesPrevios && datosRuc.localesPrevios.length > 0 ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-slate-700">
+                <p className="font-bold text-blue-900 flex items-center gap-1.5 mb-2 text-sm">
+                  🏢 Establecimientos / Sucursales Registradas de este RUC ({datosRuc.localesPrevios.length})
+                </p>
+                <p className="text-slate-600 mb-3">
+                  Un mismo RUC puede poseer múltiples locales comerciales independientes en Trujillo. A continuación se muestran los trámites y locales existentes de esta empresa:
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {datosRuc.localesPrevios.map((loc) => (
+                    <div key={loc.id} className="rounded-lg bg-white p-2.5 border border-blue-100 shadow-2xs">
+                      <span className="font-bold text-blue-800 block">{loc.codigo}</span>
+                      <span className="text-slate-600 font-mono block truncate" title={loc.direccion}>{loc.direccion}</span>
+                      <div className="mt-1 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-500">Estado: {loc.estado}</span>
+                        {loc.licencia ? <span className="font-bold text-emerald-700">Lic. #{loc.licencia}</span> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <label className="text-sm font-medium">
           Distrito <span className="text-[var(--danger)]" aria-hidden="true">*</span>

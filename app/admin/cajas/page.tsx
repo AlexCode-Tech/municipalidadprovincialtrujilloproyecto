@@ -328,7 +328,7 @@ export default function AdminCajasPage() {
         description="Auditoría detallada de saldos, arqueos físicos, cuadres y aprobación de turnos de cajeros."
       />
 
-      {/* TARJETAS DE FONDOS Y TESORERÃA MPT */}
+      {/* TARJETAS DE FONDOS Y TESORERÍA MPT */}
       <div className="mb-7 grid gap-5 md:grid-cols-3">
         {/* Card 1: Dinero de la Municipalidad Provincial de Trujillo */}
         <div className="relative overflow-hidden rounded-2xl border border-blue-900/40 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 p-5 text-white shadow-lg">

@@ -39,32 +39,6 @@ export async function POST(request: NextRequest) {
   try {
     const input = upsertSchema.parse(await request.json());
 
-    // Verificar si el RUC ya cuenta con una Licencia Aprobada VIGENTE
-    const rucAprobado = await getPrisma().negocio.findUnique({
-      where: { ruc: input.ruc },
-      include: {
-        tramites: {
-          orderBy: { creadoEn: "desc" },
-          take: 1,
-          include: { licencia: true }
-        }
-      }
-    });
-
-    if (rucAprobado && rucAprobado.tramites.length > 0) {
-      const ultimo = rucAprobado.tramites[0];
-      const estaVencida = ultimo.licencia
-        ? (new Date(ultimo.licencia.venceEn) < new Date() || ultimo.estado === "VENCIDO")
-        : false;
-
-      if (ultimo.estado === "APROBADO" && !estaVencida) {
-        return NextResponse.json(
-          { error: `El RUC ${input.ruc} ya cuenta con una Licencia de Funcionamiento Aprobada y Vigente (${ultimo.codigo}).` },
-          { status: 400 }
-        );
-      }
-    }
-
     // Verificar si el negocio ya existe
     const negocioExistente = await getPrisma().negocio.findUnique({
       where: { ruc: input.ruc },
