@@ -19,7 +19,7 @@ type Tramite = {
   };
 };
 
-type MetodoPagoUI = "EFECTIVO" | "YAPE" | "MERCADO_PAGO" | "MIXTO";
+type MetodoPagoUI = "EFECTIVO" | "YAPE" | "MIXTO";
 type SubmetodoMixto = "EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA";
 
 export default function CajeroCobroPage() {
@@ -67,9 +67,6 @@ export default function CajeroCobroPage() {
   } else if (metodo === "YAPE") {
     yap = parseFloat(montoYape || "0") || 180.0;
     desgloseCalculado = `YAPE (S/ ${yap.toFixed(2)})`;
-  } else if (metodo === "MERCADO_PAGO") {
-    tar = 180.0;
-    desgloseCalculado = `MERCADO PAGO / TARJETA (S/ 180.00)`;
   } else if (metodo === "MIXTO") {
     if (submetodoMixto === "EFECTIVO_YAPE") {
       eff = parseFloat(montoEfectivo || "0") || 0;
@@ -238,11 +235,6 @@ export default function CajeroCobroPage() {
     } else if (metodo === "YAPE") {
       setMontoEfectivo("0.00");
       setMontoYape("180.00");
-      setMontoTarjeta("0.00");
-    } else if (metodo === "MERCADO_PAGO") {
-      setMontoEfectivo("0.00");
-      setMontoYape("0.00");
-      setMontoTarjeta("180.00");
     } else {
       setMontoEfectivo("100.00");
       setMontoYape("80.00");
@@ -536,7 +528,7 @@ export default function CajeroCobroPage() {
 
       <PageHeading
         title="Registrar Cobro Presencial"
-        description="Ingresa el desglose del cobro presencial (Efectivo, YAPE, Mercado Pago o Combinación Mixta) para activar el trámite."
+        description="Ingresa el desglose del cobro presencial (Efectivo, YAPE o Combinación Mixta) para activar el trámite."
       />
 
       {errorMsg && (
@@ -592,7 +584,7 @@ export default function CajeroCobroPage() {
             <form onSubmit={handleCobro} className="mt-5 space-y-4">
               <div>
                 <label className="text-sm font-semibold block mb-2">Método de Pago</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setMetodo("EFECTIVO")}
@@ -619,18 +611,6 @@ export default function CajeroCobroPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMetodo("MERCADO_PAGO")}
-                    className={`h-11 rounded-xl text-xs font-bold border flex items-center justify-center gap-1 transition ${
-                      metodo === "MERCADO_PAGO"
-                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Wallet size={14} />
-                    Mercado Pago
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setMetodo("MIXTO")}
                     className={`h-11 rounded-xl text-xs font-bold border flex items-center justify-center gap-1 transition ${
                       metodo === "MIXTO"
@@ -644,32 +624,7 @@ export default function CajeroCobroPage() {
                 </div>
               </div>
 
-              {metodo === "MERCADO_PAGO" ? (
-                <div className="rounded-xl bg-blue-50/70 p-4 border border-blue-200 space-y-3">
-                  <div className="flex items-center gap-2 text-blue-900 font-bold text-xs">
-                    <Wallet size={16} className="text-blue-600" />
-                    <span>Cobro con Mercado Pago (Tarjeta o Yape Online)</span>
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    Procesando tasa de S/ 180.00 a través de la pasarela oficial de Mercado Pago.
-                  </p>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Código de Referencia / Operación Mercado Pago (Opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={mpReference}
-                      onChange={(e) => setMpReference(e.target.value)}
-                      placeholder="MP-1829304859..."
-                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="text-right text-xs text-slate-500 border-t border-blue-200/60 pt-2">
-                    Monto Aprobado: <span className="font-bold text-blue-900">S/ 180.00</span>
-                  </div>
-                </div>
-              ) : metodo === "MIXTO" ? (
+              {metodo === "MIXTO" ? (
                 <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">
