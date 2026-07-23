@@ -121,16 +121,16 @@ export default function CajeroCobroPage() {
       const p1 = parseFloat(montoP1 || "0") || 0;
       const p2 = parseFloat(montoP2 || "0") || 0;
       yap = Math.round((p1 + p2) * 100) / 100;
-      desgloseCalculado = `YAPE / YAPE (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
+      desgloseCalculado = `MERCADO PAGO MIXTO: YAPE / YAPE (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
     } else if (submetodoMixto === "TARJETA_YAPE") {
       tar = parseFloat(montoTarjeta || "0") || 0;
       yap = parseFloat(montoYape || "0") || 0;
-      desgloseCalculado = `TARJETA / YAPE (S/ ${tar.toFixed(2)} + S/ ${yap.toFixed(2)})`;
+      desgloseCalculado = `MERCADO PAGO MIXTO: TARJETA / YAPE (S/ ${tar.toFixed(2)} + S/ ${yap.toFixed(2)})`;
     } else if (submetodoMixto === "TARJETA_TARJETA") {
       const p1 = parseFloat(montoP1 || "0") || 0;
       const p2 = parseFloat(montoP2 || "0") || 0;
       tar = Math.round((p1 + p2) * 100) / 100;
-      desgloseCalculado = `TARJETA / TARJETA (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
+      desgloseCalculado = `MERCADO PAGO MIXTO: TARJETA / TARJETA (S/ ${p1.toFixed(2)} + S/ ${p2.toFixed(2)})`;
     } else if (submetodoMixto === "EFECTIVO_TARJETA") {
       eff = parseFloat(montoEfectivo || "0") || 0;
       tar = parseFloat(montoTarjeta || "0") || 0;
@@ -281,6 +281,38 @@ export default function CajeroCobroPage() {
       setErrorMsg(err instanceof Error ? err.message : "Error al solicitar sencillo.");
     } finally {
       setSolicitandoSencillo(false);
+    }
+  };
+
+  const [redireccionandoMp, setRedireccionandoMp] = useState(false);
+
+  const handlePagarMercadoPago = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (checkoutUrl) {
+      window.location.href = checkoutUrl;
+      return;
+    }
+
+    setRedireccionandoMp(true);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/pagos/preferencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tramiteId }),
+      });
+
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        setErrorMsg(data.error ?? "No se pudo generar la orden de Mercado Pago.");
+        setRedireccionandoMp(false);
+      }
+    } catch (err) {
+      setErrorMsg("Error de conexión con Mercado Pago.");
+      setRedireccionandoMp(false);
     }
   };
 
@@ -608,44 +640,28 @@ export default function CajeroCobroPage() {
           </div>
 
           <div className="space-y-3">
-            {/* Botón 1: Pagar con Mercado Pago (Redirección Directa al Link Web Oficial de Mercado Pago) */}
+            {/* Botón 1: Pagar con Mercado Pago */}
             <button
-              type="button"
-              onClick={async () => {
-                if (checkoutUrl) {
-                  window.location.href = checkoutUrl;
-                } else {
-                  try {
-                    const res = await fetch("/api/pagos/preferencia", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ tramiteId }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (data.checkoutUrl) {
-                        window.location.href = data.checkoutUrl;
-                        return;
-                      }
-                    }
-                  } catch (e) {
-                    console.error("Error al obtener preferencia de Mercado Pago:", e);
-                  }
-                  setErrorMsg("No se pudo iniciar la pasarela de Mercado Pago. Intenta nuevamente.");
-                }
-              }}
-              className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
+              onClick={handlePagarMercadoPago}
+              disabled={redireccionandoMp}
+              className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98] disabled:opacity-75"
             >
-              Pagar con Mercado Pago
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              {redireccionandoMp ? (
+                <>
+                  <LoaderCircle className="h-5 w-5 animate-spin text-white" />
+                  Redirigiendo a Mercado Pago...
+                </>
+              ) : (
+                <>
+                  Pagar con Mercado Pago
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
             </button>
 
             {/* Botón 2: Abrir modal de Simulación de Pago Presencial */}
             <button
-              onClick={() => {
-                setMetodoSimulacion("EFECTIVO");
-                setShowModalSimular(true);
-              }}
+              onClick={() => setShowModalSimular(true)}
               className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-50 transition-all hover:bg-emerald-800 hover:shadow-xl active:scale-[0.98]"
             >
               <Play className="h-5 w-5 fill-current" />
@@ -754,7 +770,7 @@ export default function CajeroCobroPage() {
                 {metodoSimulacion === "YAPE" && <Check className="text-emerald-600" size={20} />}
               </button>
 
-              {/* Opción 4: Pago Mixto Presencial */}
+              {/* Opción 4: Pago Mixto Mercado Pago / Pasarela */}
               <button
                 type="button"
                 onClick={() => setMetodoSimulacion("MIXTO")}
@@ -769,7 +785,7 @@ export default function CajeroCobroPage() {
                     <Split size={20} />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900 text-sm">Pago Mixto Presencial (Tarjeta + Yape / Efectivo)</p>
+                    <p className="font-bold text-slate-900 text-sm">Pago Mixto Mercado Pago (Tarjeta / Yape)</p>
                     <p className="text-xs text-slate-500">Admite combinaciones: Tarjeta + Yape, Tarjeta + Tarjeta, Yape + Yape o Efectivo</p>
                   </div>
                 </div>
@@ -808,9 +824,9 @@ export default function CajeroCobroPage() {
                     onChange={(e) => setSubmetodoMixto(e.target.value as any)}
                     className="h-10 w-full rounded-xl border border-indigo-300 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600"
                   >
-                    <option value="TARJETA_YAPE">💳 + 📱 Tarjeta y YAPE (S/ 90.00 + S/ 90.00)</option>
-                    <option value="TARJETA_TARJETA">💳 + 💳 Tarjeta y Tarjeta (Dos tarjetas bancarias)</option>
-                    <option value="YAPE_YAPE">📱 + 📱 YAPE y YAPE (Dos transacciones YAPE)</option>
+                    <option value="TARJETA_YAPE">💳 + 📱 Mercado Pago Mixto: Tarjeta y YAPE (S/ 90.00 + S/ 90.00)</option>
+                    <option value="TARJETA_TARJETA">💳 + 💳 Mercado Pago Mixto: Tarjeta y Tarjeta (Dos tarjetas bancarias)</option>
+                    <option value="YAPE_YAPE">📱 + 📱 Mercado Pago Mixto: YAPE y YAPE (Dos transacciones YAPE)</option>
                     <option value="EFECTIVO_YAPE">💵 + 📱 Efectivo y YAPE</option>
                     <option value="EFECTIVO_TARJETA">💵 + 💳 Efectivo y Tarjeta</option>
                   </select>

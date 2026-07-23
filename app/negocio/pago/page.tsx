@@ -171,6 +171,38 @@ function PagoContent() {
     }
   };
 
+  const [redireccionandoMp, setRedireccionandoMp] = useState(false);
+
+  const handlePagarMercadoPago = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (checkoutUrl) {
+      window.location.href = checkoutUrl;
+      return;
+    }
+
+    setRedireccionandoMp(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/pagos/preferencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tramiteId }),
+      });
+
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        setError(data.error ?? "No se pudo generar la orden de Mercado Pago.");
+        setRedireccionandoMp(false);
+      }
+    } catch (err) {
+      setError("Error de conexión con Mercado Pago.");
+      setRedireccionandoMp(false);
+    }
+  };
+
   const handleEjecutarSimulacion = async () => {
     setSimulando(true);
     setError(null);
@@ -324,14 +356,24 @@ function PagoContent() {
             </div>
 
             <div className="space-y-3">
-              {/* Botón 1: Pagar con Mercado Pago (Redirección Directa al Checkout de Mercado Pago) */}
-              <a
-                href={checkoutUrl ?? "#"}
-                className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
-              >
-                Pagar con Mercado Pago
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </a>
+              {/* Botón 1: Pagar con Mercado Pago */}
+            <button
+              onClick={handlePagarMercadoPago}
+              disabled={redireccionandoMp}
+              className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98] disabled:opacity-75"
+            >
+              {redireccionandoMp ? (
+                <>
+                  <LoaderCircle className="h-5 w-5 animate-spin text-white" />
+                  Redirigiendo a Mercado Pago...
+                </>
+              ) : (
+                <>
+                  Pagar con Mercado Pago
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
 
               {/* Botón 2: Abrir modal de Simulación de Pago */}
               <button
