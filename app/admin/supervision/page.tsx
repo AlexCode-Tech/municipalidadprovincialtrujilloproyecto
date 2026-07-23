@@ -20,6 +20,7 @@ type Pago = {
   numeroFactura?: string | null;
   fechaPago: string;
   estado: string;
+  detalleEstado?: string | null;
   tramite: {
     codigo: string;
     negocio: {
@@ -365,7 +366,7 @@ export default function AdminSupervisionPage() {
                   </div>
                   <div>
                     <p><strong>Fecha Pago:</strong> <span className="font-normal">{new Date(selectedPagoForInvoice.fechaPago).toLocaleDateString("es-PE")}</span></p>
-                    <p className="mt-1"><strong>Método Pago:</strong> <span className="font-normal">{selectedPagoForInvoice.metodo}</span></p>
+                    <p className="mt-1"><strong>Método Pago:</strong> <span className="font-semibold text-blue-900">{selectedPagoForInvoice.detalleEstado || selectedPagoForInvoice.metodo}</span></p>
                     <p className="mt-1"><strong>Código Trámite:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.codigo}</span></p>
                   </div>
                 </div>

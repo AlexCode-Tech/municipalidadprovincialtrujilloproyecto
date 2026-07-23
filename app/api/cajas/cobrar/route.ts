@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const prisma = getPrisma();
 
   try {
-    const { tramiteId, metodo, montoEfectivo, montoYape, vueltoTotal, vueltoEfectivo, vueltoYape } = await request.json();
+    const { tramiteId, metodo, montoEfectivo, montoYape, montoTarjeta, vueltoTotal, vueltoEfectivo, vueltoYape, detalleEstado } = await request.json();
 
     if (!tramiteId || !metodo) {
       return NextResponse.json({ error: "Faltan parámetros obligatorios" }, { status: 400 });
@@ -31,11 +31,12 @@ export async function POST(request: NextRequest) {
 
     const eff = parseFloat(montoEfectivo || 0);
     const yap = parseFloat(montoYape || 0);
+    const tar = parseFloat(montoTarjeta || 0);
     const vTot = parseFloat(vueltoTotal || 0);
     const vEff = parseFloat(vueltoEfectivo || 0);
     const vYap = parseFloat(vueltoYape || 0);
 
-    const totalRecibido = Math.round((eff + yap) * 100) / 100;
+    const totalRecibido = Math.round((eff + yap + tar) * 100) / 100;
     if (totalRecibido < COSTO_TRAMITE) {
       return NextResponse.json({ error: `El dinero recibido (S/ ${totalRecibido.toFixed(2)}) debe ser al menos el costo del trámite (S/ ${COSTO_TRAMITE}.00)` }, { status: 400 });
     }
@@ -54,16 +55,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Debes iniciar tu turno de caja (Aperturar Caja) antes de registrar un cobro presencial." }, { status: 400 });
     }
 
+    // Map metodo enum safely (if MERCADO_PAGO or MIXTO, map to valid enum value or TARJETA / MIXTO)
+    const metodoEnum = metodo === "MERCADO_PAGO" ? "TARJETA" : (["EFECTIVO", "YAPE", "TARJETA", "MIXTO"].includes(metodo) ? metodo : "MIXTO");
+
     // 2. Registrar el pago aprobado y desencadenar flujos
     const pago = await registrarPagoAprobado({
       tramiteId,
-      metodo,
+      metodo: metodoEnum,
       montoEfectivo: eff,
       montoYape: yap,
+      montoTarjeta: tar,
       vueltoTotal: vTot,
       vueltoEfectivo: vEff,
       vueltoYape: vYap,
-      cajaSessionId: sessionActiva.id
+      cajaSessionId: sessionActiva.id,
+      detalleEstado: detalleEstado || undefined
     });
 
     return NextResponse.json({ success: true, pagoId: pago.id });

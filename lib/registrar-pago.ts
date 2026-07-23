@@ -13,23 +13,27 @@ export async function registrarPagoAprobado({
   metodo,
   montoEfectivo,
   montoYape,
+  montoTarjeta = 0,
   vueltoTotal = 0,
   vueltoEfectivo = 0,
   vueltoYape = 0,
   cajaSessionId,
   mercadoPagoId,
-  tipoComprobante = "FACTURA"
+  tipoComprobante = "FACTURA",
+  detalleEstado,
 }: {
   tramiteId: string;
   metodo: "EFECTIVO" | "YAPE" | "MIXTO" | "TARJETA";
   montoEfectivo: number;
   montoYape: number;
+  montoTarjeta?: number;
   vueltoTotal?: number;
   vueltoEfectivo?: number;
   vueltoYape?: number;
   cajaSessionId?: string;
   mercadoPagoId?: string;
   tipoComprobante?: string;
+  detalleEstado?: string;
 }) {
   const prisma = getPrisma();
   const hoy = await getSystemDate();
@@ -62,6 +66,7 @@ export async function registrarPagoAprobado({
 
   // 3. Crear registro de Pago
   let finalMontoYape = Number(montoYape);
+  let finalMontoTarjeta = Number(montoTarjeta);
   let finalMonto = COSTO_TRAMITE;
 
   const pago = await prisma.pago.create({
@@ -74,14 +79,14 @@ export async function registrarPagoAprobado({
       monto: finalMonto,
       montoEfectivo,
       montoYape: finalMontoYape,
-      montoTarjeta: 0,
+      montoTarjeta: finalMontoTarjeta,
       vueltoTotal,
       vueltoEfectivo,
       vueltoYape,
       tipoComprobante,
       numeroFactura,
       fechaPago: hoy,
-      detalleEstado: "Pago registrado y verificado correctamente."
+      detalleEstado: detalleEstado || "Pago registrado y verificado correctamente."
     }
   });
 
