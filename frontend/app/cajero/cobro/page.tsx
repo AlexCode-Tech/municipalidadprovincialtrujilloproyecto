@@ -56,7 +56,7 @@ export default function CajeroCobroPage() {
   // Estados de cobro simulado / modal
   const [showModalSimular, setShowModalSimular] = useState(false);
   const [metodoSimulacion, setMetodoSimulacion] = useState<"EFECTIVO" | "YAPE" | "TARJETA" | "MIXTO">("EFECTIVO");
-  const [submetodoMixto, setSubmetodoMixto] = useState<"EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA">("TARJETA_YAPE");
+  const [submetodoMixto, setSubmetodoMixto] = useState<"EFECTIVO_YAPE" | "YAPE_YAPE" | "TARJETA_YAPE" | "TARJETA_TARJETA" | "EFECTIVO_TARJETA">("EFECTIVO_YAPE");
   
   const [montoEfectivo, setMontoEfectivo] = useState("180.00");
   const [montoYape, setMontoYape] = useState("0.00");
@@ -608,45 +608,32 @@ export default function CajeroCobroPage() {
           </div>
 
           <div className="space-y-3">
-            {/* Botón 1: Pagar con Mercado Pago (Redirección Directa a la Pasarela Oficial) */}
+            {/* Botón 1: Pagar con Mercado Pago (Abre la Pasarela Integrada con Pago Mixto, Tarjeta, Yape y Enlace Web) */}
             <button
               type="button"
-              onClick={async () => {
-                if (checkoutUrl) {
-                  window.location.href = checkoutUrl;
-                } else {
-                  try {
-                    const res = await fetch("/api/pagos/preferencia", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ tramiteId }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (data.checkoutUrl) {
-                        window.location.href = data.checkoutUrl;
-                        return;
-                      }
-                    }
-                  } catch (e) {
-                    console.error("Error al obtener preferencia de Mercado Pago:", e);
-                  }
-                  setErrorMsg("No se pudo iniciar la pasarela de Mercado Pago. Intenta nuevamente.");
-                }
+              onClick={() => {
+                setMetodoSimulacion("MIXTO");
+                setSubmetodoMixto("TARJETA_YAPE");
+                setMontoTarjeta("90.00");
+                setMontoYape("90.00");
+                setShowModalSimular(true);
               }}
               className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-[#009ee3] px-6 py-4 text-base font-bold text-white shadow-lg shadow-sky-100 transition-all hover:bg-[#008ed0] hover:shadow-xl active:scale-[0.98]"
             >
-              Pagar con Mercado Pago
+              Pagar con Mercado Pago (Tarjeta, Yape o Mixto)
               <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
             </button>
 
             {/* Botón 2: Abrir modal de Simulación de Pago Presencial */}
             <button
-              onClick={() => setShowModalSimular(true)}
+              onClick={() => {
+                setMetodoSimulacion("EFECTIVO");
+                setShowModalSimular(true);
+              }}
               className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-50 transition-all hover:bg-emerald-800 hover:shadow-xl active:scale-[0.98]"
             >
               <Play className="h-5 w-5 fill-current" />
-              Simular Pago (Sin Mercado Pago)
+              Simular Pago en Efectivo (Sin Mercado Pago)
             </button>
           </div>
 
@@ -1024,32 +1011,48 @@ export default function CajeroCobroPage() {
             )}
 
             {/* Acciones del Modal */}
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowModalSimular(false)}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleEjecutarCobroSimulado}
-                disabled={pending || totalRecibido < 179.99 || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
-              >
-                {pending ? (
-                  <>
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                    Procesando cobro...
-                  </>
-                ) : (
-                  <>
-                    <Check size={16} />
-                    Confirmar y Registrar Pago
-                  </>
-                )}
-              </button>
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModalSimular(false)}
+                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEjecutarCobroSimulado}
+                  disabled={pending || totalRecibido < 179.99 || (vueltoCalculadoTotal > 0 && vueltoEfectivoCalculado > saldoDisponibleEnCaja)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md transition disabled:opacity-50"
+                >
+                  {pending ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Procesando cobro...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} />
+                      Confirmar y Registrar Pago
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {checkoutUrl && (
+                <div className="text-center pt-1 border-t border-slate-100">
+                  <a
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-600 hover:text-sky-800 hover:underline"
+                  >
+                    <ExternalLink size={13} />
+                    Ir al Checkout Web Externo de Mercado Pago (mercadopago.com.pe)
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
