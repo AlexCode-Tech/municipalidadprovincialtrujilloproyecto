@@ -728,13 +728,13 @@ export default function CajeroCobroPage() {
                 {metodoSimulacion === "YAPE" && <Check className="text-emerald-600" size={20} />}
               </button>
 
-              {/* Opción 4: Pago Mixto */}
+              {/* Opción 4: Pago Mixto Mercado Pago / Pasarela */}
               <button
                 type="button"
                 onClick={() => setMetodoSimulacion("MIXTO")}
                 className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
                   metodoSimulacion === "MIXTO"
-                    ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                    ? "border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-500/20"
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -743,11 +743,11 @@ export default function CajeroCobroPage() {
                     <Split size={20} />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900 text-sm">Pago Mixto con Vuelto (Tarjeta + Yape + Efectivo)</p>
-                    <p className="text-xs text-slate-500">Permite montos mayores para calcular el vuelto en caja o Yape</p>
+                    <p className="font-bold text-slate-900 text-sm">Pago Mixto Mercado Pago (Tarjeta / Yape)</p>
+                    <p className="text-xs text-slate-500">Admite combinaciones: Tarjeta + Yape, Tarjeta + Tarjeta, Yape + Yape o Efectivo</p>
                   </div>
                 </div>
-                {metodoSimulacion === "MIXTO" && <Check className="text-emerald-600" size={20} />}
+                {metodoSimulacion === "MIXTO" && <Check className="text-indigo-600" size={20} />}
               </button>
             </div>
 
@@ -775,17 +775,17 @@ export default function CajeroCobroPage() {
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-4 animate-in fade-in">
                 <div>
                   <label className="text-xs font-bold text-indigo-900 block mb-1">
-                    Combinación de Pago Mixto:
+                    Selecciona la Combinación de Pago Mixto:
                   </label>
                   <select
                     value={submetodoMixto}
                     onChange={(e) => setSubmetodoMixto(e.target.value as any)}
-                    className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600"
+                    className="h-10 w-full rounded-xl border border-indigo-300 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-600"
                   >
+                    <option value="TARJETA_YAPE">💳 + 📱 Mercado Pago Mixto: Tarjeta y YAPE (S/ 90.00 + S/ 90.00)</option>
+                    <option value="TARJETA_TARJETA">💳 + 💳 Mercado Pago Mixto: Tarjeta y Tarjeta (Dos tarjetas bancarias)</option>
+                    <option value="YAPE_YAPE">📱 + 📱 Mercado Pago Mixto: YAPE y YAPE (Dos transacciones YAPE)</option>
                     <option value="EFECTIVO_YAPE">💵 + 📱 Efectivo y YAPE</option>
-                    <option value="YAPE_YAPE">📱 + 📱 YAPE y YAPE (Dos transacciones YAPE)</option>
-                    <option value="TARJETA_YAPE">💳 + 📱 Tarjeta y YAPE</option>
-                    <option value="TARJETA_TARJETA">💳 + 💳 Tarjeta y Tarjeta (Dos tarjetas)</option>
                     <option value="EFECTIVO_TARJETA">💵 + 💳 Efectivo y Tarjeta</option>
                   </select>
                 </div>
