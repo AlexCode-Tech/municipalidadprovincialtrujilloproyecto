@@ -259,8 +259,8 @@ export default function AdminNegociosPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-[var(--border)] bg-white shadow-sm overflow-hidden">
-          <table className="w-full text-left text-sm border-collapse">
+        <div className="rounded-2xl border border-[var(--border)] bg-white shadow-sm overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse min-w-[1000px]">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-semibold border-b border-[var(--border)]">
               <tr>
                 <th className="px-5 py-3.5">Negocio / RUC</th>
@@ -270,7 +270,7 @@ export default function AdminNegociosPage() {
                 <th className="px-5 py-3.5">Fin Licencia / Vencimiento</th>
                 <th className="px-5 py-3.5">Último Trámite</th>
                 <th className="px-5 py-3.5">Estado Cuenta</th>
-                <th className="px-5 py-3.5 text-center">Acciones</th>
+                <th className="px-5 py-3.5 text-center sticky right-0 bg-slate-50 shadow-sm">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -330,17 +330,27 @@ export default function AdminNegociosPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td
+                      className="px-5 py-4 cursor-pointer hover:bg-blue-50/60 transition rounded-lg group"
+                      onClick={() => abrirModalEditarFechas(n)}
+                      title="Clic para modificar fecha y hora de inicio de licencia"
+                    >
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                        <Calendar size={14} className="text-blue-600 shrink-0" />
+                        <Calendar size={14} className="text-blue-600 shrink-0 group-hover:scale-110 transition-transform" />
                         <span>{fechaInicioStr}</span>
+                        <Edit3 size={12} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity ml-0.5" />
                       </div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td
+                      className="px-5 py-4 cursor-pointer hover:bg-indigo-50/60 transition rounded-lg group"
+                      onClick={() => abrirModalEditarFechas(n)}
+                      title="Clic para modificar fecha y hora de vencimiento de licencia"
+                    >
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                          <CalendarCheck size={14} className="text-indigo-600 shrink-0" />
+                          <CalendarCheck size={14} className="text-indigo-600 shrink-0 group-hover:scale-110 transition-transform" />
                           <span>{fechaFinStr}</span>
+                          <Edit3 size={12} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity ml-0.5" />
                         </div>
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${esVencida ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-800"}`}>
                           {esVencida ? "⚠️ Licencia Vencida" : "✓ Licencia Vigente"}
@@ -367,11 +377,11 @@ export default function AdminNegociosPage() {
                         <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-center">
+                    <td className="px-5 py-4 text-center sticky right-0 bg-white shadow-sm">
                       <button
                         type="button"
                         onClick={() => abrirModalEditarFechas(n)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100 transition shadow-sm"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-indigo-100 transition active:scale-95 whitespace-nowrap"
                         title="Modificar fecha y hora de inicio y fin de la licencia"
                       >
                         <Edit3 size={13} />
