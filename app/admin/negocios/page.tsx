@@ -378,15 +378,30 @@ export default function AdminNegociosPage() {
                       )}
                     </td>
                     <td className="px-5 py-4 text-center sticky right-0 bg-white shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => abrirModalEditarFechas(n)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-indigo-100 transition active:scale-95 whitespace-nowrap"
-                        title="Modificar fecha y hora de inicio y fin de la licencia"
-                      >
-                        <Edit3 size={13} />
-                        Editar Fechas
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetId = n.tramites[0]?.id || n.id;
+                            window.open(`/api/licencias-pdf/${targetId}`, "_blank");
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md shadow-emerald-100 transition active:scale-95 whitespace-nowrap"
+                          title="Visualizar documento PDF de la licencia (Vigente o Vencida)"
+                        >
+                          <FileText size={13} />
+                          Ver Licencia
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => abrirModalEditarFechas(n)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-xs font-bold text-white shadow-md shadow-indigo-100 transition active:scale-95 whitespace-nowrap"
+                          title="Modificar fecha y hora de inicio y fin de la licencia"
+                        >
+                          <Edit3 size={13} />
+                          Editar Fechas
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

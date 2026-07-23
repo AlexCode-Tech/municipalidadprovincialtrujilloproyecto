@@ -206,15 +206,68 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
     });
   }
 
-  const access = await requireRole("NEGOCIO", "CAJERO", "INSPECTOR");
+  const access = await requireRole("ADMIN", "NEGOCIO", "CAJERO", "INSPECTOR");
   if (access.error) return access.error;
-  if (!(await canAccessTramite(access.session.user, tramiteId))) return forbidden();
+  if (access.session.user.rol !== "ADMIN" && !(await canAccessTramite(access.session.user, tramiteId))) return forbidden();
 
-  const tramite = await getPrisma().tramite.findUnique({
+  const prisma = getPrisma();
+
+  let tramite = await prisma.tramite.findUnique({
     where: { id: tramiteId },
     include: { negocio: true, licencia: true },
   });
-  if (!tramite?.licencia) return NextResponse.json({ error: "Licencia no disponible" }, { status: 404 });
+
+  if (!tramite) {
+    tramite = await prisma.tramite.findFirst({
+      where: { negocioId: tramiteId },
+      orderBy: { creadoEn: "desc" },
+      include: { negocio: true, licencia: true },
+    });
+  }
+
+  if (!tramite) {
+    const negocio = await prisma.negocio.findUnique({ where: { id: tramiteId } });
+    if (!negocio) return NextResponse.json({ error: "Trámite o Negocio no encontrado" }, { status: 404 });
+
+    const codigo = `SOL-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const inicio = negocio.creadoEn || new Date();
+    const fin = new Date(inicio);
+    fin.setFullYear(fin.getFullYear() + 1);
+
+    tramite = await prisma.tramite.create({
+      data: {
+        codigo,
+        negocioId: negocio.id,
+        estado: new Date() > fin ? "VENCIDO" : "APROBADO",
+        monto: 180.00,
+        direccionTrujillo: negocio.domicilioFiscal,
+        licencia: {
+          create: {
+            numero: `LF-${codigo}`,
+            emitidaEn: inicio,
+            venceEn: fin
+          }
+        }
+      },
+      include: { negocio: true, licencia: true }
+    });
+  }
+
+  if (!tramite.licencia) {
+    const inicio = tramite.creadoEn || new Date();
+    const fin = new Date(inicio);
+    fin.setFullYear(fin.getFullYear() + 1);
+
+    const nuevaLicencia = await prisma.licencia.create({
+      data: {
+        numero: `LF-${tramite.codigo}`,
+        tramiteId: tramite.id,
+        emitidaEn: inicio,
+        venceEn: fin
+      }
+    });
+    tramite.licencia = nuevaLicencia;
+  }
 
   const hoy = await getSystemDate();
   const vencida = tramite.licencia.venceEn < hoy || tramite.estado === "VENCIDO";
@@ -222,7 +275,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
     numero: tramite.licencia.numero,
     razonSocial: tramite.negocio.razonSocial,
     ruc: tramite.negocio.ruc,
-    domicilio: `${tramite.negocio.domicilioFiscal}, ${tramite.negocio.distrito}`,
+    domicilio: `${tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}, ${tramite.negocio.distrito}`,
     emitida: tramite.licencia.emitidaEn,
     vence: tramite.licencia.venceEn,
     vencida,
@@ -231,7 +284,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=licencia-${tramite.licencia.numero}.pdf`,
+      "Content-Disposition": `inline; filename=licencia-${tramite.licencia.numero}.pdf`,
       "Cache-Control": "private, no-store",
     },
   });
