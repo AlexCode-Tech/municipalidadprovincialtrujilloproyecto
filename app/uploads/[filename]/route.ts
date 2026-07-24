@@ -5,10 +5,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { filename: string } }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
   try {
-    const filename = decodeURIComponent(params.filename || "plano.jpg");
+    const { filename: rawFilename } = await params;
+    const filename = decodeURIComponent(rawFilename || "plano.jpg");
 
     // Generar PDF dinámico en respuesta a cualquier solicitud de archivo estático en uploads/
     const buffer = await renderFallbackPdf(filename);

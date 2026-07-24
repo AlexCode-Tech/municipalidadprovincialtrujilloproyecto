@@ -9,11 +9,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tramiteId: string } }
+  { params }: { params: Promise<{ tramiteId: string }> }
 ) {
   try {
     const prisma = getPrisma();
-    const tramiteIdOrCodigo = params.tramiteId;
+    const { tramiteId: tramiteIdOrCodigo } = await params;
 
     // Buscar trámite por ID o por código SOL-...
     const tramite = await prisma.tramite.findFirst({
