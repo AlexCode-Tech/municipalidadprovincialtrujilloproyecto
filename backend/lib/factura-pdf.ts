@@ -66,13 +66,7 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
 
     doc.font("Helvetica").fontSize(8.5);
 
-    // Fecha de Vencimiento
-    doc.text("Fecha de Vencimiento", col1X, y);
-    doc.text(":", col1X + 105, y);
-    doc.font("Helvetica-Bold").text(fechaVence, val1X, y);
-
     // Fecha de Emisión
-    y += lineGap;
     doc.font("Helvetica").text("Fecha de Emisión", col1X, y);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.fechaEmision, val1X, y);
@@ -90,10 +84,10 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.ruc, val1X, y);
 
-    // Establecimiento del Emisor
+    // Domicilio Fiscal del Cliente
     y += lineGap;
-    doc.font("Helvetica").text("Establecimiento del", col1X, y);
-    doc.text("Emisor", col1X, y + 10);
+    doc.font("Helvetica").text("Domicilio Fiscal del", col1X, y);
+    doc.text("Cliente", col1X, y + 9);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.domicilioFiscal.toUpperCase(), val1X, y, { width: 380 });
     const domHeight = Math.max(18, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);

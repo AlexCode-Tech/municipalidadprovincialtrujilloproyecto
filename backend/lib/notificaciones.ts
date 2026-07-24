@@ -279,11 +279,6 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
         <!-- Bloque 2: Datos del Cliente -->
         <table width="100%" border="0" cellspacing="0" cellpadding="3" style="font-size: 11px; line-height: 1.4; color: #000; margin-bottom: 10px;">
           <tr>
-            <td width="160">Fecha de Vencimiento</td>
-            <td width="10">:</td>
-            <td><strong>${fechaVencimientoStr}</strong></td>
-          </tr>
-          <tr>
             <td>Fecha de Emisión</td>
             <td>:</td>
             <td><strong>${fechaEmisionStr}</strong></td>
@@ -299,7 +294,7 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
             <td><strong>${tramite.negocio.ruc}</strong></td>
           </tr>
           <tr>
-            <td valign="top">Establecimiento del Emisor</td>
+            <td valign="top">Domicilio Fiscal del Cliente</td>
             <td valign="top">:</td>
             <td><strong>${tramite.negocio.domicilioFiscal.toUpperCase()}</strong></td>
           </tr>
@@ -311,7 +306,7 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
           <tr>
             <td>Observación</td>
             <td>:</td>
-            <td><strong>ORDEN DE SERVICIO N. ${tramite.codigo} (${metodoPago})</strong></td>
+            <td><strong>ORDEN DE SERVICIO N. ${tramite.codigo} (${metodoPago}) - VÁLIDO HASTA: ${fechaVencimientoStr}</strong></td>
           </tr>
         </table>
 
