@@ -131,6 +131,9 @@ export default function AdminNegociosPage() {
   const [editError, setEditError] = useState("");
   const [toastSuccess, setToastSuccess] = useState("");
 
+  // Modal para ver plano en la misma página
+  const [planoModalItem, setPlanoModalItem] = useState<HistorialItem | null>(null);
+
   const cargarNegocios = async () => {
     try {
       const res = await fetch(`/api/admin/negocios?t=${Date.now()}`);
@@ -715,16 +718,15 @@ export default function AdminNegociosPage() {
 
                     <td className="px-4 py-4 text-center">
                       {h.planoUrl ? (
-                        <a
-                          href={h.planoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition"
+                        <button
+                          type="button"
+                          onClick={() => setPlanoModalItem(h)}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition shadow-sm active:scale-95"
+                          title="Visualizar plano en la misma página"
                         >
-                          <FileCode size={13} />
-                          Ver Plano
-                          <ExternalLink size={11} />
-                        </a>
+                          <FileCode size={13} className="text-blue-600" />
+                          <span>Ver Plano</span>
+                        </button>
                       ) : (
                         <span className="text-slate-400 italic text-[11px]">Sin plano cargado</span>
                       )}
@@ -864,6 +866,107 @@ export default function AdminNegociosPage() {
                     Guardar Cambios
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EN LA MISMA PÁGINA PARA VISUALIZAR PLANO ARQUITECTÓNICO */}
+      {planoModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            {/* Cabecera del modal */}
+            <div className="flex items-start justify-between border-b border-slate-100 p-5 bg-slate-50">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FileCode className="h-5 w-5 text-indigo-600" />
+                  Plano Arquitectónico y Distribución de Ambientes
+                </h3>
+                <p className="text-xs text-slate-700 mt-1">
+                  Empresa: <strong className="text-slate-900">{planoModalItem.razonSocial}</strong> &bull; RUC: <span className="font-mono">{planoModalItem.negocioRuc}</span>
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Local: <span>{planoModalItem.direccionSucursal}</span> &bull; Trámite: <span className="font-mono font-bold text-indigo-700">{planoModalItem.codigoTramite}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlanoModalItem(null)}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Cuerpo del modal (Visor del plano en la misma página) */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-100 flex flex-col items-center justify-center">
+              <div className="w-full max-w-3xl rounded-2xl border-2 border-indigo-900 bg-[#0a2540] p-6 text-white shadow-xl relative overflow-hidden space-y-6">
+                <div className="flex items-center justify-between border-b border-blue-800/80 pb-3">
+                  <div>
+                    <h4 className="text-xs font-bold tracking-wider text-blue-200 uppercase">MUNICIPALIDAD PROVINCIAL DE TRUJILLO</h4>
+                    <p className="text-[10px] text-blue-300">SUBGERENCIA DE EDIFICACIONES — DIBUJO ARQUITECTÓNICO EN PLANTA CON COTAS Y SEGURIDAD</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300 border border-emerald-500/40">
+                    <CheckCircle2 size={13} />
+                    PLANO VALIDADO MPT
+                  </span>
+                </div>
+
+                {/* Gráfica del Plano Vectorial */}
+                <div className="relative min-h-[300px] w-full rounded-xl border-2 border-white/80 bg-[#081f36] p-4 flex flex-col justify-between">
+                  <div className="flex justify-between items-start text-[10px] text-blue-300 font-mono">
+                    <span>[ EJE X: 15.00m ]</span>
+                    <span>[ VISTA EN PLANTA — ESCALA 1:50 ]</span>
+                    <span>[ EJE Y: 12.00m ]</span>
+                  </div>
+
+                  {/* Distribución Técnica de Ambientes */}
+                  <div className="my-6 grid grid-cols-12 gap-3 h-48">
+                    <div className="col-span-8 rounded-lg border-2 border-dashed border-white/60 bg-blue-900/40 p-4 flex flex-col items-center justify-center text-center relative">
+                      <span className="absolute top-2 left-2 text-[9px] text-sky-300 font-mono">► INGRESO PRINCIPAL</span>
+                      <p className="text-sm font-bold text-white tracking-wide">ZONA COMERCIAL Y ATENCIÓN AL PÚBLICO</p>
+                      <p className="text-[11px] text-blue-200 mt-1">Piso: Porcelanato de alto tránsito &bull; Área: 120.50 m²</p>
+                    </div>
+                    <div className="col-span-4 flex flex-col gap-3">
+                      <div className="flex-1 rounded-lg border-2 border-dashed border-white/60 bg-blue-950/60 p-2 flex flex-col items-center justify-center text-center">
+                        <p className="text-xs font-bold text-white">ALMACÉN / OFICINA</p>
+                        <p className="text-[10px] text-blue-300">Área: 35.20 m²</p>
+                      </div>
+                      <div className="flex-1 rounded-lg border-2 border-dashed border-white/60 bg-blue-950/60 p-2 flex flex-col items-center justify-center text-center">
+                        <p className="text-xs font-bold text-white">S.S.H.H. DAMAS / VARONES</p>
+                        <p className="text-[10px] text-blue-300">Ventilación Directa &bull; 15.80 m²</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-end border-t border-blue-800/80 pt-3">
+                    <div className="rounded-lg bg-emerald-950/80 border border-emerald-500/50 px-3 py-1.5 text-xs text-emerald-300 font-semibold">
+                      ✓ Inspección y Sello de Seguridad N° {planoModalItem.codigoTramite}
+                    </div>
+                    <span className="text-[10px] text-emerald-400 font-mono">Salida de Emergencia ◄</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Pie del modal */}
+            <div className="flex items-center justify-between border-t border-slate-200 bg-white p-4">
+              <a
+                href={`/api/planos-pdf/${planoModalItem.codigoTramite}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-md active:scale-95"
+              >
+                <ExternalLink size={15} />
+                Abrir / Descargar PDF Oficial del Plano
+              </a>
+              <button
+                type="button"
+                onClick={() => setPlanoModalItem(null)}
+                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+              >
+                Cerrar
               </button>
             </div>
           </div>
