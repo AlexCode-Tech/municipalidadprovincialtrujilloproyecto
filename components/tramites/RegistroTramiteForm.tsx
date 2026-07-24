@@ -4,9 +4,11 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
+  Building2,
   CheckCircle2,
   FileImage,
   LoaderCircle,
+  MapPin,
   Search,
   ShieldCheck,
   UploadCloud,
@@ -475,12 +477,20 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {datosRuc.localesPrevios.map((loc) => (
-                    <div key={loc.id} className="rounded-lg bg-white p-2.5 border border-blue-100 shadow-2xs">
-                      <span className="font-bold text-blue-800 block">{loc.codigo}</span>
-                      <span className="text-slate-600 font-mono block truncate" title={loc.direccion}>{loc.direccion}</span>
-                      <div className="mt-1 flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-500">Estado: {loc.estado}</span>
-                        {loc.licencia ? <span className="font-bold text-emerald-700">Lic. #{loc.licencia}</span> : null}
+                    <div key={loc.id} className="rounded-xl bg-white p-3 border border-blue-200 shadow-sm space-y-1 hover:border-blue-400 transition">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-blue-900 text-xs flex items-center gap-1">
+                          <Building2 size={13} className="text-indigo-600 shrink-0" />
+                          {loc.codigo}
+                        </span>
+                        {loc.licencia ? <span className="font-bold text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Lic. #{loc.licencia}</span> : null}
+                      </div>
+                      <div className="flex items-start gap-1.5 text-slate-800 text-xs mt-1">
+                        <MapPin size={14} className="text-red-500 shrink-0 mt-0.5" />
+                        <span className="leading-snug font-bold text-slate-900">{loc.direccion}</span>
+                      </div>
+                      <div className="pt-1.5 flex items-center justify-between text-[11px] border-t border-slate-100 mt-1">
+                        <span className="font-medium text-slate-500">Estado: <strong className="text-slate-700 font-semibold">{loc.estado}</strong></span>
                       </div>
                     </div>
                   ))}
