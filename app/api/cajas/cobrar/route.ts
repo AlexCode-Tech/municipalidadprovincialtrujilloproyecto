@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       detalleEstado: detalleEstado || undefined
     });
 
-    return NextResponse.json({ success: true, pagoId: pago.id });
+    return NextResponse.json({ success: true, pagoId: pago.id, numeroFactura: pago.numeroFactura });
   } catch (error) {
     console.error("Error al procesar cobro en caja:", error);
     return NextResponse.json({ error: "No se pudo registrar el pago presencial." }, { status: 500 });

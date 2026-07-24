@@ -355,13 +355,9 @@ export default function CajeroCobroPage() {
           setErrorMsg(body.error ?? "No se pudo procesar el cobro.");
         } else {
           setShowModalSimular(false);
-          const resPago = await fetch(`/api/tramites/${tramiteId}`);
-          const dataPago = await resPago.json();
-          const fact = dataPago.pagos?.[0]?.numeroFactura || `F001-${Math.floor(100000 + Math.random() * 900000)}`;
-
           setSuccessData({
             pagoId: body.pagoId,
-            numeroFactura: fact,
+            numeroFactura: body.numeroFactura || "F001-00000001",
           });
         }
       } catch (err) {

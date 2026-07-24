@@ -182,7 +182,8 @@ export async function registrarPagoAprobado({
 
   // 5. Enviar alertas y factura electrónica
   const { enviarComprobantePago, notificarInspeccionesHoy, obtenerEmailReal } = require("./notificaciones");
-  const emailDestino = obtenerEmailReal(tramite.negocio.usuario?.email);
+  const userEmail = tramite.negocio.usuario?.email || (tramite.negocio as any).email || (tramite as any).email;
+  const emailDestino = obtenerEmailReal(userEmail, "aleeexpsm2005@gmail.com");
   
   void enviarComprobantePago(tramiteId, emailDestino);
   void notificarInspeccionesHoy();

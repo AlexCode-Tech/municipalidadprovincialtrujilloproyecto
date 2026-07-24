@@ -244,9 +244,8 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
     const fechaVenceObj = new Date(fechaPago.getFullYear() + 1, fechaPago.getMonth(), fechaPago.getDate());
     const fechaVencimientoStr = `${String(fechaVenceObj.getDate()).padStart(2, "0")}/${String(fechaVenceObj.getMonth() + 1).padStart(2, "0")}/${fechaVenceObj.getFullYear()}`;
 
-    // Correlativo simulado
-    const correlativo = tramite.codigo.replace(/\D/g, "").slice(-6);
-    const numeroComprobante = `F001-${correlativo.padStart(6, "0")}`;
+    // Correlativo real de la factura
+    const numeroComprobante = (pago && (pago as any).numeroFactura) ? (pago as any).numeroFactura : "F001-00000001";
 
     // Hash aleatorio de 8 caracteres hexadecimales
     const hashSimulado = Math.random().toString(16).slice(2, 10).toUpperCase();
