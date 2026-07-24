@@ -12,11 +12,15 @@ import {
   ChevronRight,
   Clock,
   Edit3,
+  ExternalLink,
+  FileCode,
   FileText,
+  History,
   LoaderCircle,
   MapPin,
   Save,
   Store,
+  User,
   X,
   XCircle,
 } from "lucide-react";
@@ -58,6 +62,22 @@ type Negocio = {
   tramites: Tramite[];
 };
 
+type HistorialItem = {
+  id: string;
+  fechaHora: string;
+  negocioRuc: string;
+  razonSocial: string;
+  usuarioNombre: string;
+  usuarioEmail: string;
+  codigoTramite: string;
+  direccionSucursal: string;
+  tipoModificacion: string;
+  descripcion: string;
+  planoUrl?: string | null;
+  declaracionUrl?: string | null;
+  estadoResultante?: string | null;
+};
+
 const estadoTramiteBadge: Record<string, { label: string; className: string }> = {
   BORRADOR: { label: "Borrador", className: "bg-slate-100 text-slate-700" },
   PAGO_PENDIENTE: { label: "Borrador", className: "bg-slate-100 text-slate-700" },
@@ -92,8 +112,12 @@ const formatFechaHora = (dateStr?: string | Date): string => {
 };
 
 export default function AdminNegociosPage() {
+  const [activeTab, setActiveTab] = useState<"negocios" | "historial">("negocios");
+
   const [negocios, setNegocios] = useState<Negocio[]>([]);
+  const [historial, setHistorial] = useState<HistorialItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedNegocios, setExpandedNegocios] = useState<Record<string, boolean>>({});
 
@@ -120,9 +144,30 @@ export default function AdminNegociosPage() {
     }
   };
 
+  const cargarHistorial = async () => {
+    setLoadingHistorial(true);
+    try {
+      const res = await fetch(`/api/admin/negocios-historial?t=${Date.now()}`);
+      if (res.ok) {
+        const body = await res.json();
+        setHistorial(body);
+      }
+    } catch (err) {
+      console.error("Error al cargar historial:", err);
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
   useEffect(() => {
     void cargarNegocios();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "historial" && historial.length === 0) {
+      void cargarHistorial();
+    }
+  }, [activeTab, historial.length]);
 
   const toggleExpand = (negocioId: string) => {
     setExpandedNegocios((prev) => ({
@@ -212,6 +257,7 @@ export default function AdminNegociosPage() {
       setEditingNegocio(null);
       setEditingTramite(null);
       await cargarNegocios();
+      await cargarHistorial();
       setTimeout(() => setToastSuccess(""), 4000);
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Error al guardar las fechas.");
@@ -228,11 +274,21 @@ export default function AdminNegociosPage() {
       n.tramites.some((t) => (t.direccionTrujillo || "").toLowerCase().includes(search.toLowerCase()))
   );
 
+  const historialFiltrado = historial.filter(
+    (h) =>
+      h.negocioRuc.includes(search) ||
+      h.razonSocial.toLowerCase().includes(search.toLowerCase()) ||
+      h.codigoTramite.toLowerCase().includes(search.toLowerCase()) ||
+      h.direccionSucursal.toLowerCase().includes(search.toLowerCase()) ||
+      h.tipoModificacion.toLowerCase().includes(search.toLowerCase()) ||
+      h.descripcion.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeading
-        title="Negocios Registrados"
-        description="Tabla unificada de RUCs y sus respectivas sucursales desplegables."
+        title="Gestión de Negocios Registrados"
+        description="Administra los negocios RUCs, sus sucursales desplegables y revisa el historial completo de modificaciones."
       />
 
       {toastSuccess && (
@@ -247,6 +303,35 @@ export default function AdminNegociosPage() {
         </div>
       )}
 
+      {/* BOTONES DE NAVEGACIÓN ENTRE VISTAS (TABS) */}
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("negocios")}
+          className={`inline-flex items-center gap-2.5 rounded-2xl px-5 py-3 text-xs font-bold transition shadow-sm ${
+            activeTab === "negocios"
+              ? "bg-[var(--blue)] text-white shadow-blue-200"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          <Building2 size={16} />
+          Negocios Registrados
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("historial")}
+          className={`inline-flex items-center gap-2.5 rounded-2xl px-5 py-3 text-xs font-bold transition shadow-sm ${
+            activeTab === "historial"
+              ? "bg-[var(--blue)] text-white shadow-blue-200"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          <History size={16} />
+          Historial de Negocios
+        </button>
+      </div>
+
       {/* Barra de búsqueda */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
@@ -255,258 +340,352 @@ export default function AdminNegociosPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por RUC, razón social o dirección de sucursal..."
+            placeholder={
+              activeTab === "negocios"
+                ? "Buscar por RUC, razón social o dirección de sucursal..."
+                : "Buscar por RUC, razón social, trámite o tipo de modificación..."
+            }
             className="h-11 w-full rounded-xl border border-[var(--border)] bg-white pl-10 pr-4 text-sm outline-none focus:border-[var(--blue)]"
           />
         </div>
         <span className="text-sm font-semibold text-slate-500">
-          {filtrados.length} negocio{filtrados.length !== 1 ? "s" : ""}
+          {activeTab === "negocios"
+            ? `${filtrados.length} negocio${filtrados.length !== 1 ? "s" : ""}`
+            : `${historialFiltrado.length} registro${historialFiltrado.length !== 1 ? "s" : ""}`}
         </span>
       </div>
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-[var(--muted)]">
-          <LoaderCircle className="animate-spin text-[var(--blue)]" size={32} />
-          <p className="mt-3 text-sm font-medium">Cargando tabla de negocios y sucursales...</p>
-        </div>
-      ) : filtrados.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-white py-20 text-center">
-          <Building2 className="text-slate-300" size={48} />
-          <p className="mt-4 text-sm font-semibold text-slate-500">
-            {search ? "No se encontraron negocios con ese criterio." : "No hay negocios registrados aún."}
-          </p>
-        </div>
-      ) : (
-        /* ÚNICA TABLA HTML INTEGRADA PARA TODOS LOS RUCS Y SUS SUCURSALES */
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-xs border-collapse min-w-[950px]">
-            <thead className="bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 font-bold border-b border-slate-200">
-              <tr>
-                <th className="px-3 py-3.5 w-10 text-center"></th>
-                <th className="px-4 py-3.5">NEGOCIO / RUC / SUCURSAL</th>
-                <th className="px-4 py-3.5">CUENTA / CÓDIGO TRÁMITE</th>
-                <th className="px-4 py-3.5">DIRECCIÓN (SUNAT / SUCURSAL)</th>
-                <th className="px-4 py-3.5">FECHAS LICENCIA</th>
-                <th className="px-4 py-3.5">ESTADO</th>
-                <th className="px-4 py-3.5 text-center">ACCIONES</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filtrados.map((n) => {
-                const isExpanded = Boolean(expandedNegocios[n.id]);
-                const numSucursales = n.tramites.length;
-                const cuentaActiva = n.usuario?.estado === "ACTIVO";
+      {/* TAB 1: NEGOCIOS REGISTRADOS (TABLA CON SUBFILAS DESPLEGABLES) */}
+      {activeTab === "negocios" && (
+        loading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-[var(--muted)]">
+            <LoaderCircle className="animate-spin text-[var(--blue)]" size={32} />
+            <p className="mt-3 text-sm font-medium">Cargando tabla de negocios y sucursales...</p>
+          </div>
+        ) : filtrados.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-white py-20 text-center">
+            <Building2 className="text-slate-300" size={48} />
+            <p className="mt-4 text-sm font-semibold text-slate-500">
+              {search ? "No se encontraron negocios con ese criterio." : "No hay negocios registrados aún."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+              <thead className="bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th className="px-3 py-3.5 w-10 text-center"></th>
+                  <th className="px-4 py-3.5">NEGOCIO / RUC / SUCURSAL</th>
+                  <th className="px-4 py-3.5">CUENTA / CÓDIGO TRÁMITE</th>
+                  <th className="px-4 py-3.5">DIRECCIÓN (SUNAT / SUCURSAL)</th>
+                  <th className="px-4 py-3.5">FECHAS LICENCIA</th>
+                  <th className="px-4 py-3.5">ESTADO</th>
+                  <th className="px-4 py-3.5 text-center">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filtrados.map((n) => {
+                  const isExpanded = Boolean(expandedNegocios[n.id]);
+                  const numSucursales = n.tramites.length;
+                  const cuentaActiva = n.usuario?.estado === "ACTIVO";
 
-                return (
-                  <React.Fragment key={n.id}>
-                    {/* FILA PRINCIPAL DEL RUC DE LA TABLA */}
-                    <tr
-                      onClick={() => toggleExpand(n.id)}
-                      className={`cursor-pointer transition ${
-                        isExpanded ? "bg-slate-100/90" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <td className="px-3 py-4 text-center">
-                        <button
-                          type="button"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200/80 text-slate-700 transition hover:bg-slate-300"
-                        >
-                          {isExpanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
-                        </button>
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-900 text-sm leading-snug">{n.razonSocial}</p>
-                        <div className="mt-1 flex items-center gap-2 text-xs">
-                          <span className="font-mono font-bold text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded-md">
-                            RUC: {n.ruc}
-                          </span>
-                          <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full text-[11px]">
-                            🏢 {numSucursales} {numSucursales === 1 ? "Sucursal / Local" : "Sucursales / Locales"}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <p className="font-bold text-slate-800">{n.usuario?.nombre || "Sin cuenta"}</p>
-                        <p className="text-slate-500 text-xs">{n.usuario?.email || "—"}</p>
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-700 max-w-[240px]">
-                        <div className="flex items-start gap-1.5">
-                          <MapPin size={14} className="mt-0.5 shrink-0 text-slate-400" />
-                          <span className="leading-snug">{n.domicilioFiscal}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-400 italic">
-                        {numSucursales > 0 ? `${numSucursales} local(es)` : "Sin registros"}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {n.usuario ? (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
-                              cuentaActiva ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                            }`}
+                  return (
+                    <React.Fragment key={n.id}>
+                      {/* FILA PRINCIPAL DEL RUC EN LA TABLA */}
+                      <tr
+                        onClick={() => toggleExpand(n.id)}
+                        className={`cursor-pointer transition ${
+                          isExpanded ? "bg-slate-100/90" : "hover:bg-slate-50"
+                        }`}
+                      >
+                        <td className="px-3 py-4 text-center">
+                          <button
+                            type="button"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200/80 text-slate-700 transition hover:bg-slate-300"
                           >
-                            {cuentaActiva ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-                            {cuentaActiva ? "Activa" : "Inactiva"}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
+                            {isExpanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                          </button>
+                        </td>
 
-                      <td className="px-4 py-4 text-center">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleExpand(n.id);
-                          }}
-                          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-sm"
-                        >
-                          {isExpanded ? "Ocultar" : `Ver Sucursales (${numSucursales})`}
-                        </button>
-                      </td>
-                    </tr>
+                        <td className="px-4 py-4">
+                          <p className="font-bold text-slate-900 text-sm leading-snug">{n.razonSocial}</p>
+                          <div className="mt-1 flex items-center gap-2 text-xs">
+                            <span className="font-mono font-bold text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded-md">
+                              RUC: {n.ruc}
+                            </span>
+                            <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full text-[11px]">
+                              🏢 {numSucursales} {numSucursales === 1 ? "Sucursal / Local" : "Sucursales / Locales"}
+                            </span>
+                          </div>
+                        </td>
 
-                    {/* SUBFILAS DE SUCURSALES DIRECTAMENTE EN LA MISMA TABLA */}
-                    {isExpanded &&
-                      (numSucursales === 0 ? (
-                        <tr key={`${n.id}-empty`} className="bg-slate-50">
-                          <td></td>
-                          <td colSpan={6} className="px-4 py-3 text-slate-500 italic text-xs">
-                            No hay sucursales ni trámites registrados para este RUC.
-                          </td>
-                        </tr>
-                      ) : (
-                        n.tramites.map((t, idx) => {
-                          const badgeInfo = estadoTramiteBadge[t.estado];
+                        <td className="px-4 py-4">
+                          <p className="font-bold text-slate-800">{n.usuario?.nombre || "Sin cuenta"}</p>
+                          <p className="text-slate-500 text-xs">{n.usuario?.email || "—"}</p>
+                        </td>
 
-                          let fechaInicioObj: Date;
-                          let fechaFinObj: Date;
+                        <td className="px-4 py-4 text-slate-700 max-w-[240px]">
+                          <div className="flex items-start gap-1.5">
+                            <MapPin size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                            <span className="leading-snug">{n.domicilioFiscal}</span>
+                          </div>
+                        </td>
 
-                          if (t.licencia?.emitidaEn) {
-                            fechaInicioObj = new Date(t.licencia.emitidaEn);
-                            fechaFinObj = new Date(t.licencia.venceEn);
-                          } else if (t.pagos?.[0]?.fechaPago) {
-                            fechaInicioObj = new Date(t.pagos[0].fechaPago);
-                            fechaFinObj = new Date(fechaInicioObj);
-                            fechaFinObj.setFullYear(fechaFinObj.getFullYear() + 1);
-                          } else {
-                            fechaInicioObj = new Date(t.creadoEn);
-                            fechaFinObj = new Date(fechaInicioObj);
-                            fechaFinObj.setFullYear(fechaFinObj.getFullYear() + 1);
-                          }
+                        <td className="px-4 py-4 text-slate-400 italic">
+                          {numSucursales > 0 ? `${numSucursales} local(es)` : "Sin registros"}
+                        </td>
 
-                          const fechaInicioStr = formatFechaHora(fechaInicioObj);
-                          const fechaFinStr = formatFechaHora(fechaFinObj);
-                          const esVencida = new Date() > fechaFinObj;
-                          const direccionSucursal = t.direccionTrujillo || n.domicilioFiscal;
-
-                          return (
-                            <tr
-                              key={t.id}
-                              className="bg-indigo-50/40 hover:bg-indigo-50/70 transition border-t border-slate-200"
+                        <td className="px-4 py-4">
+                          {n.usuario ? (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+                                cuentaActiva ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+                              }`}
                             >
-                              <td className="px-3 py-3 text-right text-indigo-400 font-mono text-xs">
-                                └
-                              </td>
+                              {cuentaActiva ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                              {cuentaActiva ? "Activa" : "Inactiva"}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
 
-                              <td className="px-4 py-3 pl-6 font-medium text-slate-800">
-                                <div className="flex items-center gap-2">
-                                  <Building2 size={14} className="text-indigo-600 shrink-0" />
-                                  <span className="font-bold text-slate-900">Sucursal #{idx + 1}</span>
-                                </div>
-                              </td>
+                        <td className="px-4 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpand(n.id);
+                            }}
+                            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+                          >
+                            {isExpanded ? "Ocultar" : `Ver Sucursales (${numSucursales})`}
+                          </button>
+                        </td>
+                      </tr>
 
-                              <td className="px-4 py-3 font-mono font-bold text-indigo-900">
-                                {t.codigo}
-                              </td>
+                      {/* SUBFILAS DE SUCURSALES DIRECTAMENTE EN LA MISMA TABLA */}
+                      {isExpanded &&
+                        (numSucursales === 0 ? (
+                          <tr key={`${n.id}-empty`} className="bg-slate-50">
+                            <td></td>
+                            <td colSpan={6} className="px-4 py-3 text-slate-500 italic text-xs">
+                              No hay sucursales ni trámites registrados para este RUC.
+                            </td>
+                          </tr>
+                        ) : (
+                          n.tramites.map((t, idx) => {
+                            const badgeInfo = estadoTramiteBadge[t.estado];
 
-                              <td className="px-4 py-3 font-medium text-slate-800 max-w-[240px]">
-                                <div className="flex items-start gap-1.5">
-                                  <MapPin size={13} className="mt-0.5 shrink-0 text-indigo-600" />
-                                  <span className="leading-snug">{direccionSucursal}</span>
-                                </div>
-                              </td>
+                            let fechaInicioObj: Date;
+                            let fechaFinObj: Date;
 
-                              <td className="px-4 py-3">
-                                <div className="space-y-1">
-                                  <div
-                                    className="flex items-center gap-1.5 cursor-pointer hover:underline text-slate-700"
-                                    onClick={() => abrirModalEditarFechas(n, t)}
-                                    title="Clic para editar inicio"
-                                  >
-                                    <Calendar size={12} className="text-blue-600 shrink-0" />
-                                    <span>Inicio: {fechaInicioStr}</span>
+                            if (t.licencia?.emitidaEn) {
+                              fechaInicioObj = new Date(t.licencia.emitidaEn);
+                              fechaFinObj = new Date(t.licencia.venceEn);
+                            } else if (t.pagos?.[0]?.fechaPago) {
+                              fechaInicioObj = new Date(t.pagos[0].fechaPago);
+                              fechaFinObj = new Date(fechaInicioObj);
+                              fechaFinObj.setFullYear(fechaFinObj.getFullYear() + 1);
+                            } else {
+                              fechaInicioObj = new Date(t.creadoEn);
+                              fechaFinObj = new Date(fechaInicioObj);
+                              fechaFinObj.setFullYear(fechaFinObj.getFullYear() + 1);
+                            }
+
+                            const fechaInicioStr = formatFechaHora(fechaInicioObj);
+                            const fechaFinStr = formatFechaHora(fechaFinObj);
+                            const esVencida = new Date() > fechaFinObj;
+                            const direccionSucursal = t.direccionTrujillo || n.domicilioFiscal;
+
+                            return (
+                              <tr
+                                key={t.id}
+                                className="bg-indigo-50/40 hover:bg-indigo-50/70 transition border-t border-slate-200"
+                              >
+                                <td className="px-3 py-3 text-right text-indigo-400 font-mono text-xs">
+                                  └
+                                </td>
+
+                                <td className="px-4 py-3 pl-6 font-medium text-slate-800">
+                                  <div className="flex items-center gap-2">
+                                    <Building2 size={14} className="text-indigo-600 shrink-0" />
+                                    <span className="font-bold text-slate-900">Sucursal #{idx + 1}</span>
                                   </div>
-                                  <div
-                                    className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer hover:underline"
-                                    onClick={() => abrirModalEditarFechas(n, t)}
-                                    title="Clic para editar vencimiento"
-                                  >
-                                    <CalendarCheck size={12} className="text-indigo-600 shrink-0" />
-                                    <span>Fin: {fechaFinStr}</span>
+                                </td>
+
+                                <td className="px-4 py-3 font-mono font-bold text-indigo-900">
+                                  {t.codigo}
+                                </td>
+
+                                <td className="px-4 py-3 font-medium text-slate-800 max-w-[240px]">
+                                  <div className="flex items-start gap-1.5">
+                                    <MapPin size={13} className="mt-0.5 shrink-0 text-indigo-600" />
+                                    <span className="leading-snug">{direccionSucursal}</span>
                                   </div>
-                                  <span
-                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                                      esVencida ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-800"
-                                    }`}
-                                  >
-                                    {esVencida ? "⚠️ Licencia Vencida" : "✓ Licencia Vigente"}
-                                  </span>
-                                </div>
-                              </td>
+                                </td>
 
-                              <td className="px-4 py-3">
-                                {badgeInfo ? (
-                                  <span
-                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${badgeInfo.className}`}
-                                  >
-                                    <FileText size={11} />
-                                    {badgeInfo.label}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-400 italic">Sin estado</span>
-                                )}
-                              </td>
+                                <td className="px-4 py-3">
+                                  <div className="space-y-1">
+                                    <div
+                                      className="flex items-center gap-1.5 cursor-pointer hover:underline text-slate-700"
+                                      onClick={() => abrirModalEditarFechas(n, t)}
+                                      title="Clic para editar inicio"
+                                    >
+                                      <Calendar size={12} className="text-blue-600 shrink-0" />
+                                      <span>Inicio: {fechaInicioStr}</span>
+                                    </div>
+                                    <div
+                                      className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer hover:underline"
+                                      onClick={() => abrirModalEditarFechas(n, t)}
+                                      title="Clic para editar vencimiento"
+                                    >
+                                      <CalendarCheck size={12} className="text-indigo-600 shrink-0" />
+                                      <span>Fin: {fechaFinStr}</span>
+                                    </div>
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                        esVencida ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-800"
+                                      }`}
+                                    >
+                                      {esVencida ? "⚠️ Licencia Vencida" : "✓ Licencia Vigente"}
+                                    </span>
+                                  </div>
+                                </td>
 
-                              <td className="px-4 py-3 text-center">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => window.open(`/api/licencias-pdf/${t.id}`, "_blank")}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition active:scale-95 whitespace-nowrap"
-                                    title="Ver documento PDF de la licencia para esta sucursal"
-                                  >
-                                    <FileText size={12} />
-                                    Ver Licencia
-                                  </button>
+                                <td className="px-4 py-3">
+                                  {badgeInfo ? (
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${badgeInfo.className}`}
+                                    >
+                                      <FileText size={11} />
+                                      {badgeInfo.label}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 italic">Sin estado</span>
+                                  )}
+                                </td>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => abrirModalEditarFechas(n, t)}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition active:scale-95 whitespace-nowrap"
-                                    title="Modificar fecha y hora para esta sucursal"
-                                  >
-                                    <Edit3 size={12} />
-                                    Editar Fechas
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ))}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => window.open(`/api/licencias-pdf/${t.id}`, "_blank")}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition active:scale-95 whitespace-nowrap"
+                                      title="Ver documento PDF de la licencia para esta sucursal"
+                                    >
+                                      <FileText size={12} />
+                                      Ver Licencia
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => abrirModalEditarFechas(n, t)}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition active:scale-95 whitespace-nowrap"
+                                      title="Modificar fecha y hora para esta sucursal"
+                                    >
+                                      <Edit3 size={12} />
+                                      Editar Fechas
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ))}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* TAB 2: HISTORIAL DE MODIFICACIONES DE NEGOCIOS */}
+      {activeTab === "historial" && (
+        loadingHistorial ? (
+          <div className="flex flex-col items-center justify-center py-24 text-[var(--muted)]">
+            <LoaderCircle className="animate-spin text-[var(--blue)]" size={32} />
+            <p className="mt-3 text-sm font-medium">Cargando historial de modificaciones de negocios...</p>
+          </div>
+        ) : historialFiltrado.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-white py-20 text-center">
+            <History className="text-slate-300" size={48} />
+            <p className="mt-4 text-sm font-semibold text-slate-500">
+              {search ? "No hay registros con ese criterio de búsqueda." : "No hay modificaciones registradas en el historial."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+              <thead className="bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3.5">FECHA Y HORA</th>
+                  <th className="px-4 py-3.5">NEGOCIO / RUC</th>
+                  <th className="px-4 py-3.5">LOCAL / SUCURSAL</th>
+                  <th className="px-4 py-3.5">TIPO DE MODIFICACIÓN</th>
+                  <th className="px-4 py-3.5">DETALLE DE CAMBIOS</th>
+                  <th className="px-4 py-3.5 text-center">PLANOS / ADJUNTOS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {historialFiltrado.map((h) => (
+                  <tr key={h.id} className="hover:bg-slate-50 transition">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                        <Clock size={13} className="text-indigo-600 shrink-0" />
+                        <span>{formatFechaHora(h.fechaHora)}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">Por: {h.usuarioNombre}</span>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <p className="font-bold text-slate-900 text-sm leading-snug">{h.razonSocial}</p>
+                      <p className="font-mono text-xs font-semibold text-slate-500 mt-0.5">RUC: {h.negocioRuc}</p>
+                    </td>
+
+                    <td className="px-4 py-4 max-w-[230px]">
+                      <span className="font-mono font-bold text-indigo-900 block text-xs">{h.codigoTramite}</span>
+                      <div className="flex items-start gap-1 text-slate-600 mt-0.5">
+                        <MapPin size={13} className="mt-0.5 shrink-0 text-slate-400" />
+                        <span className="leading-snug">{h.direccionSucursal}</span>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-xs font-bold text-indigo-800">
+                        <History size={12} />
+                        {h.tipoModificacion}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-4 text-slate-700 max-w-[280px]">
+                      <p className="leading-relaxed font-medium">{h.descripcion}</p>
+                    </td>
+
+                    <td className="px-4 py-4 text-center">
+                      {h.planoUrl ? (
+                        <a
+                          href={h.planoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition"
+                        >
+                          <FileCode size={13} />
+                          Ver Plano
+                          <ExternalLink size={11} />
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 italic text-[11px]">Sin plano cargado</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
       {/* MODAL ADMINISTRABLE PARA MODIFICAR FECHA Y HORA DE LICENCIA */}
