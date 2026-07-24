@@ -18,6 +18,7 @@ import {
   History,
   LoaderCircle,
   MapPin,
+  RefreshCw,
   Save,
   Store,
   User,
@@ -159,15 +160,39 @@ export default function AdminNegociosPage() {
     }
   };
 
+  const refrescarTodoSilencioso = async () => {
+    try {
+      const [resNeg, resHist] = await Promise.all([
+        fetch(`/api/admin/negocios?t=${Date.now()}`, { cache: "no-store" }),
+        fetch(`/api/admin/negocios-historial?t=${Date.now()}`, { cache: "no-store" }),
+      ]);
+      if (resNeg.ok) {
+        const bodyNeg = await resNeg.json();
+        setNegocios(bodyNeg);
+      }
+      if (resHist.ok) {
+        const bodyHist = await resHist.json();
+        setHistorial(bodyHist);
+      }
+    } catch (err) {
+      console.error("Error al refrescar datos en segundo plano:", err);
+    }
+  };
+
   useEffect(() => {
     void cargarNegocios();
+    void cargarHistorial();
+
+    const interval = setInterval(() => {
+      void refrescarTodoSilencioso();
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (activeTab === "historial" && historial.length === 0) {
-      void cargarHistorial();
-    }
-  }, [activeTab, historial.length]);
+    void refrescarTodoSilencioso();
+  }, [activeTab]);
 
   const toggleExpand = (negocioId: string) => {
     setExpandedNegocios((prev) => ({
@@ -353,6 +378,16 @@ export default function AdminNegociosPage() {
             ? `${filtrados.length} negocio${filtrados.length !== 1 ? "s" : ""}`
             : `${historialFiltrado.length} registro${historialFiltrado.length !== 1 ? "s" : ""}`}
         </span>
+
+        <button
+          type="button"
+          onClick={() => void refrescarTodoSilencioso()}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm active:scale-95 ml-auto"
+          title="Actualizar datos en tiempo real"
+        >
+          <RefreshCw size={14} className="text-indigo-600" />
+          Actualizar
+        </button>
       </div>
 
       {/* TAB 1: NEGOCIOS REGISTRADOS (TABLA CON SUBFILAS DESPLEGABLES) */}
