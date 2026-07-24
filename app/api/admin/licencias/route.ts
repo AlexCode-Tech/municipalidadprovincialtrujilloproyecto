@@ -12,30 +12,14 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { negocioId, tramiteId, emitidaEn, venceEn } = body;
 
-    if (!negocioId || !emitidaEn || !venceEn) {
+    if ((!negocioId && !tramiteId) || !emitidaEn || !venceEn) {
       return NextResponse.json(
-        { error: "Parámetros negocioId, emitidaEn y venceEn son obligatorios." },
+        { error: "Parámetros negocioId o tramiteId, emitidaEn y venceEn son obligatorios." },
         { status: 400 }
       );
     }
 
     const prisma = getPrisma();
-
-    // 1. Buscar el negocio
-    const negocio = await prisma.negocio.findUnique({
-      where: { id: negocioId },
-      include: {
-        tramites: {
-          orderBy: { creadoEn: "desc" },
-          include: { licencia: true }
-        }
-      }
-    });
-
-    if (!negocio) {
-      return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
-    }
-
     const fechaEmitida = new Date(emitidaEn);
     const fechaVence = new Date(venceEn);
 
@@ -47,28 +31,49 @@ export async function PATCH(request: NextRequest) {
     }
 
     let tramite;
+
     if (tramiteId) {
-      tramite = negocio.tramites.find(t => t.id === tramiteId) || await prisma.tramite.findUnique({
+      tramite = await prisma.tramite.findUnique({
         where: { id: tramiteId },
-        include: { licencia: true }
+        include: { licencia: true, negocio: true }
       });
-    } else {
-      tramite = negocio.tramites[0];
     }
 
-    // Si el negocio no tiene un trámite registrado aún, creamos uno aprobado automáticamente
-    if (!tramite) {
-      const codigoNuevo = `SOL-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-      tramite = await prisma.tramite.create({
-        data: {
-          codigo: codigoNuevo,
-          negocioId: negocio.id,
-          estado: new Date() > fechaVence ? "VENCIDO" : "APROBADO",
-          monto: 180.00,
-          direccionTrujillo: negocio.domicilioFiscal,
-        },
-        include: { licencia: true }
+    if (!tramite && negocioId) {
+      const negocio = await prisma.negocio.findUnique({
+        where: { id: negocioId },
+        include: {
+          tramites: {
+            orderBy: { creadoEn: "desc" },
+            take: 1,
+            include: { licencia: true }
+          }
+        }
       });
+
+      if (!negocio) {
+        return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+      }
+
+      tramite = negocio.tramites[0];
+
+      if (!tramite) {
+        const codigoNuevo = `SOL-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+        tramite = await prisma.tramite.create({
+          data: {
+            codigo: codigoNuevo,
+            negocioId: negocio.id,
+            estado: new Date() > fechaVence ? "VENCIDO" : "APROBADO",
+            monto: 180.00,
+            direccionTrujillo: negocio.domicilioFiscal,
+          },
+          include: { licencia: true, negocio: true }
+        });
+      }
+    }
+
+    if (!tramite) {
+      return NextResponse.json({ error: "Trámite no encontrado." }, { status: 404 });
     }
 
     const esVencida = new Date() > fechaVence;
@@ -94,7 +99,7 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    // Actualizar también el estado del trámite si corresponde
+    // Actualizar también el estado del trámite
     if (tramite.estado === "APROBADO" || tramite.estado === "VENCIDO" || tramite.estado === "PAGO_PENDIENTE" || tramite.estado === "BORRADOR") {
       await prisma.tramite.update({
         where: { id: tramite.id },

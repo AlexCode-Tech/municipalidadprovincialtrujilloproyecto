@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
           codigo: true,
           estado: true,
           direccionTrujillo: true,
+          rubro: true,
+          tipoTramite: true,
           creadoEn: true,
           licencia: {
             select: {
