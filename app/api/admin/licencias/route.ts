@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest) {
     if (access.error) return access.error;
 
     const body = await request.json();
-    const { negocioId, emitidaEn, venceEn } = body;
+    const { negocioId, tramiteId, emitidaEn, venceEn } = body;
 
     if (!negocioId || !emitidaEn || !venceEn) {
       return NextResponse.json(
@@ -27,7 +27,6 @@ export async function PATCH(request: NextRequest) {
       include: {
         tramites: {
           orderBy: { creadoEn: "desc" },
-          take: 1,
           include: { licencia: true }
         }
       }
@@ -47,7 +46,15 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    let tramite = negocio.tramites[0];
+    let tramite;
+    if (tramiteId) {
+      tramite = negocio.tramites.find(t => t.id === tramiteId) || await prisma.tramite.findUnique({
+        where: { id: tramiteId },
+        include: { licencia: true }
+      });
+    } else {
+      tramite = negocio.tramites[0];
+    }
 
     // Si el negocio no tiene un trámite registrado aún, creamos uno aprobado automáticamente
     if (!tramite) {

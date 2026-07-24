@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
           id: true,
           codigo: true,
           estado: true,
+          direccionTrujillo: true,
           creadoEn: true,
           licencia: {
             select: {
@@ -46,7 +47,6 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { creadoEn: "desc" },
-        take: 1,
       },
     },
     orderBy: { creadoEn: "desc" },
