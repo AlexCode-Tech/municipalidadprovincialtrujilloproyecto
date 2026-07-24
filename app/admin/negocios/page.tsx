@@ -632,12 +632,15 @@ export default function AdminNegociosPage() {
               <tbody className="divide-y divide-slate-200">
                 {historialFiltrado.map((h) => (
                   <tr key={h.id} className="hover:bg-slate-50 transition">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                    <td className="px-4 py-4 w-[170px]">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900 whitespace-nowrap">
                         <Clock size={13} className="text-indigo-600 shrink-0" />
                         <span>{formatFechaHora(h.fechaHora)}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 block mt-0.5">Por: {h.usuarioNombre}</span>
+                      <div className="text-[10px] text-slate-500 leading-snug mt-1.5">
+                        <p className="font-semibold text-slate-400">Por:</p>
+                        <p className="font-medium text-slate-600 break-words">{h.usuarioNombre}</p>
+                      </div>
                     </td>
 
                     <td className="px-4 py-4">
