@@ -5,6 +5,37 @@ import { COSTO_TRAMITE } from "./constantes";
 import { programarPrimeraInspeccion } from "./inspecciones";
 import type { ResultadoPago } from "./mercadopago";
 
+export async function generarSiguienteCorrelativoFactura(prisma: any): Promise<string> {
+  try {
+    const seq = await prisma.secuenciaFactura.upsert({
+      where: { serie: "F001" },
+      create: { serie: "F001", ultimoValor: 1 },
+      update: { ultimoValor: { increment: 1 } },
+    });
+    return `F001-${String(seq.ultimoValor).padStart(8, "0")}`;
+  } catch (err) {
+    const pagos = await prisma.pago.findMany({
+      where: {
+        numeroFactura: { startsWith: "F001-" },
+      },
+      select: { numeroFactura: true },
+    });
+
+    let maxSecuencia = 0;
+    for (const p of pagos) {
+      if (p.numeroFactura) {
+        const numPart = p.numeroFactura.replace("F001-", "").trim();
+        const num = parseInt(numPart, 10);
+        if (!isNaN(num) && num > maxSecuencia) {
+          maxSecuencia = num;
+        }
+      }
+    }
+    const siguiente = maxSecuencia + 1;
+    return `F001-${String(siguiente).padStart(8, "0")}`;
+  }
+}
+
 /**
  * Registra un pago aprobado para un trámite, calcula el nuevo estado y programa inspecciones o renueva la licencia.
  */
@@ -49,9 +80,8 @@ export async function registrarPagoAprobado({
     }
   });
 
-  // 2. Generar número de comprobante único y asignar código de trámite oficial MPT
-  const correlativo = Math.floor(100000 + Math.random() * 900000).toString();
-  const numeroFactura = `F001-${correlativo.padStart(6, "0")}`;
+  // 2. Generar número de comprobante único secuencial F001-00000001 (8 dígitos)
+  const numeroFactura = await generarSiguienteCorrelativoFactura(prisma);
 
   // 2.5 Asignar el código de trámite oficial MPT solo ahora que se confirma el pago
   const countOficiales = await prisma.tramite.count({
@@ -73,7 +103,7 @@ export async function registrarPagoAprobado({
     data: {
       tramiteId,
       cajaSessionId: cajaSessionId || null,
-      mercadoPagoId: mercadoPagoId || `pres-${Date.now()}-${correlativo}`,
+      mercadoPagoId: mercadoPagoId || `pres-${Date.now()}-${numeroFactura.replace("F001-", "")}`,
       estado: "APPROVED",
       metodo,
       monto: finalMonto,
@@ -106,7 +136,7 @@ export async function registrarPagoAprobado({
     // Nueva fecha de vencimiento es 1 año posterior a la fecha de vencimiento original
     const venceEn = new Date(fechaVencimientoBase.getFullYear() + 1, fechaVencimientoBase.getMonth(), fechaVencimientoBase.getDate());
     const emitidaEn = new Date(hoy.getTime());
-    const numeroLicencia = `LF-MPT-${hoy.getFullYear()}-${correlativo.padStart(6, "0")}`;
+    const numeroLicencia = `LF-MPT-${hoy.getFullYear()}-${numeroFactura.replace("F001-", "")}`;
 
     await prisma.$transaction([
       prisma.licencia.upsert({

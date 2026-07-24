@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { canAccessTramite, forbidden, requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
 import { generarFacturaPdf } from "@/lib/factura-pdf";
+import { getSystemDate } from "@/lib/system-date";
 
 export const runtime = "nodejs";
 
@@ -45,13 +46,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
     }
   }
 
-  const fechaPago = pago ? new Date(pago.creadoEn) : new Date(tramite.actualizadoEn);
+  const hoy = await getSystemDate();
+  const fechaPago = pago ? new Date(pago.fechaPago || pago.creadoEn) : hoy;
   const fechaEmisionStr = `${String(fechaPago.getDate()).padStart(2, "0")}/${String(fechaPago.getMonth() + 1).padStart(2, "0")}/${fechaPago.getFullYear()}`;
   const fechaVenceObj = new Date(fechaPago.getFullYear() + 1, fechaPago.getMonth(), fechaPago.getDate());
   const fechaVencimientoStr = `${String(fechaVenceObj.getDate()).padStart(2, "0")}/${String(fechaVenceObj.getMonth() + 1).padStart(2, "0")}/${fechaVenceObj.getFullYear()}`;
 
-  const correlativo = tramite.codigo.replace(/\D/g, "").slice(-6);
-  const numeroComprobante = pago?.numeroFactura || `F001-${correlativo.padStart(6, "0")}`;
+  const numeroComprobante = pago?.numeroFactura || "F001-00000001";
 
   const pdfBuffer = await generarFacturaPdf({
     numeroComprobante,

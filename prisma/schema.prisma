@@ -239,3 +239,11 @@ model DepositoMunicipal {
   creadoEn      DateTime @default(now())
 }
 
+model SecuenciaFactura {
+  id            String   @id @default(cuid())
+  serie         String   @unique @default("F001")
+  ultimoValor   Int      @default(0)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+}
+

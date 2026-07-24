@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { CajaCerradaBlock } from "@/components/caja/CajaCerradaBlock";
+import { getSystemDateClient } from "@/lib/system-date-client";
 
 type Tramite = {
   id: string;
@@ -396,7 +397,10 @@ export default function CajeroCobroPage() {
   }
 
   if (successData && tramite) {
-    const fechaHoyFormatted = new Date().toISOString().split("T")[0];
+    const fechaSistema = getSystemDateClient();
+    const fechaHoyFormatted = `${fechaSistema.getFullYear()}-${String(fechaSistema.getMonth() + 1).padStart(2, "0")}-${String(fechaSistema.getDate()).padStart(2, "0")}`;
+    const fechaVenceObj = new Date(fechaSistema.getFullYear() + 1, fechaSistema.getMonth(), fechaSistema.getDate());
+    const fechaVencimientoStr = `${fechaVenceObj.getDate()}/${fechaVenceObj.getMonth() + 1}/${fechaVenceObj.getFullYear()}`;
 
     return (
       <div className="mx-auto max-w-2xl bg-white rounded-2xl border border-[var(--border)] p-7 shadow-xl">
@@ -453,11 +457,6 @@ export default function CajeroCobroPage() {
 
           <div className="space-y-1 text-[11px] leading-snug">
             <div className="flex">
-              <span className="w-60 font-normal shrink-0">Fecha de Vencimiento</span>
-              <span className="w-3 text-center shrink-0">:</span>
-              <span className="font-bold">{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString("es-PE")}</span>
-            </div>
-            <div className="flex">
               <span className="w-60 font-normal shrink-0">Fecha de Emisión</span>
               <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold">{fechaHoyFormatted}</span>
@@ -473,7 +472,7 @@ export default function CajeroCobroPage() {
               <span className="font-bold">{tramite.negocio.ruc}</span>
             </div>
             <div className="flex">
-              <span className="w-60 font-normal shrink-0">Establecimiento del Emisor (SUNAT)</span>
+              <span className="w-60 font-normal shrink-0">Domicilio Fiscal del Cliente</span>
               <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase">{tramite.negocio.domicilioFiscal}</span>
             </div>
@@ -495,7 +494,7 @@ export default function CajeroCobroPage() {
             <div className="flex">
               <span className="w-60 font-normal shrink-0">Observación</span>
               <span className="w-3 text-center shrink-0">:</span>
-              <span className="font-bold uppercase">ORDEN DE SERVICIO N. {tramite.codigo} ({lastDesglose || desgloseCalculado})</span>
+              <span className="font-bold uppercase">ORDEN DE SERVICIO N. {tramite.codigo} ({lastDesglose || desgloseCalculado}) - VÁLIDO HASTA: {fechaVencimientoStr}</span>
             </div>
           </div>
 

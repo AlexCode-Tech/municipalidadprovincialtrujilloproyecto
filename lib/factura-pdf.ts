@@ -63,17 +63,9 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     const col1X = margin + 15;
     const val1X = margin + 130;
     const lineGap = 13;
-    const fechaVence = datos.fechaVencimiento || "17/08/2027";
-
     doc.font("Helvetica").fontSize(8.5);
 
-    // Fecha de Vencimiento
-    doc.text("Fecha de Vencimiento", col1X, y);
-    doc.text(":", col1X + 105, y);
-    doc.font("Helvetica-Bold").text(fechaVence, val1X, y);
-
     // Fecha de Emisión
-    y += lineGap;
     doc.font("Helvetica").text("Fecha de Emisión", col1X, y);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.fechaEmision, val1X, y);
@@ -91,25 +83,31 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.ruc, val1X, y);
 
-    // Establecimiento del Emisor (SUNAT)
+    // Domicilio Fiscal del Cliente
     y += lineGap;
-    doc.font("Helvetica").text("Establecimiento del", col1X, y);
-    doc.text("Emisor (SUNAT)", col1X, y + 9);
+    doc.font("Helvetica").text("Domicilio Fiscal del", col1X, y);
+    doc.text("Cliente", col1X, y + 9);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.domicilioFiscal.toUpperCase(), val1X, y, { width: 380 });
     const domHeight = Math.max(18, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);
 
-    // Local a Licenciar (Sucursal)
+    // Dirección del Local a Licenciar (Sucursal)
     y += domHeight;
-    doc.font("Helvetica").text("Local / Sucursal", col1X, y);
-    doc.text("a Licenciar", col1X, y + 9);
+    doc.font("Helvetica").text("Dirección del Local a", col1X, y);
+    doc.text("Licenciar (Sucursal)", col1X, y + 9);
     doc.text(":", col1X + 105, y);
     const sucText = (datos.direccionSucursal || datos.domicilioFiscal).toUpperCase();
     doc.font("Helvetica-Bold").text(sucText, val1X, y, { width: 380 });
     const sucHeight = Math.max(18, doc.heightOfString(sucText, { width: 380 }) + 2);
 
-    // Tipo de Moneda
+    // Forma de Pago
     y += sucHeight;
+    doc.font("Helvetica").text("Forma de Pago", col1X, y);
+    doc.text(":", col1X + 105, y);
+    doc.font("Helvetica-Bold").text("CONTADO", val1X, y);
+
+    // Tipo de Moneda
+    y += lineGap;
     doc.font("Helvetica").text("Tipo de Moneda", col1X, y);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text("SOLES", val1X, y);
@@ -118,7 +116,8 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     y += lineGap;
     doc.font("Helvetica").text("Observación", col1X, y);
     doc.text(":", col1X + 105, y);
-    const obsText = `ORDEN DE SERVICIO N. ${datos.codigoTramite ?? "MPT-2026-000001"}${datos.metodoPago ? ` (${datos.metodoPago})` : ""}`;
+    const obsVigencia = datos.fechaVencimiento ? ` - VÁLIDO HASTA: ${datos.fechaVencimiento}` : "";
+    const obsText = `ORDEN DE SERVICIO N. ${datos.codigoTramite ?? "MPT-2026-000001"}${datos.metodoPago ? ` (${datos.metodoPago})` : ""}${obsVigencia}`;
     doc.font("Helvetica-Bold").text(obsText, val1X, y, { width: 380 });
 
     // Línea divisoria 2 (Tabla Header)

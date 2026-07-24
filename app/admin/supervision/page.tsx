@@ -363,7 +363,7 @@ export default function AdminSupervisionPage() {
                   <div>
                     <p><strong>Razón Social:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.razonSocial}</span></p>
                     <p className="mt-1"><strong>RUC:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.ruc}</span></p>
-                    <p className="mt-1"><strong>Establecimiento del Emisor (SUNAT):</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.domicilioFiscal || "—"}</span></p>
+                    <p className="mt-1"><strong>Domicilio Fiscal del Cliente:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.domicilioFiscal || "—"}</span></p>
                     <p className="mt-1"><strong>Local a Licenciar (Sucursal):</strong> <span className="font-bold">{selectedPagoForInvoice.tramite.direccionTrujillo || selectedPagoForInvoice.tramite.negocio.domicilioFiscal}</span></p>
                   </div>
                   <div>
