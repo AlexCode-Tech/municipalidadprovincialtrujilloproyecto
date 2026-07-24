@@ -473,14 +473,14 @@ export default function CajeroCobroPage() {
               <span className="font-bold">{tramite.negocio.ruc}</span>
             </div>
             <div className="flex">
-              <span className="w-60 font-normal shrink-0">Domicilio Fiscal (SUNAT)</span>
+              <span className="w-60 font-normal shrink-0">Establecimiento del Emisor (SUNAT)</span>
               <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase">{tramite.negocio.domicilioFiscal}</span>
             </div>
             <div className="flex">
-              <span className="w-60 font-normal shrink-0">Dirección del Local a Licenciar (Sucursal)</span>
+              <span className="w-60 font-normal shrink-0">Local a Licenciar (Sucursal)</span>
               <span className="w-3 text-center shrink-0">:</span>
-              <span className="font-bold uppercase text-blue-900">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</span>
+              <span className="font-bold uppercase">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</span>
             </div>
             <div className="flex">
               <span className="w-60 font-normal shrink-0">Forma de Pago</span>

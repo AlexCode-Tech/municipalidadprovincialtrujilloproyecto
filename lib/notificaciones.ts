@@ -299,14 +299,14 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
             <td><strong>${tramite.negocio.ruc}</strong></td>
           </tr>
           <tr>
-            <td valign="top">Domicilio Fiscal (SUNAT)</td>
+            <td valign="top">Establecimiento del Emisor (SUNAT)</td>
             <td valign="top">:</td>
             <td><strong>${tramite.negocio.domicilioFiscal.toUpperCase()}</strong></td>
           </tr>
           <tr>
             <td valign="top">Local a Licenciar (Sucursal)</td>
             <td valign="top">:</td>
-            <td><strong style="color: #0b4278;">${(tramite.direccionTrujillo || tramite.negocio.domicilioFiscal).toUpperCase()}</strong></td>
+            <td><strong>${(tramite.direccionTrujillo || tramite.negocio.domicilioFiscal).toUpperCase()}</strong></td>
           </tr>
           <tr>
             <td>Tipo de Moneda</td>

@@ -91,12 +91,13 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.ruc, val1X, y);
 
-    // Domicilio Fiscal
+    // Establecimiento del Emisor (SUNAT)
     y += lineGap;
-    doc.font("Helvetica").text("Domicilio Fiscal", col1X, y);
+    doc.font("Helvetica").text("Establecimiento del", col1X, y);
+    doc.text("Emisor (SUNAT)", col1X, y + 9);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.domicilioFiscal.toUpperCase(), val1X, y, { width: 380 });
-    const domHeight = Math.max(14, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);
+    const domHeight = Math.max(18, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);
 
     // Local a Licenciar (Sucursal)
     y += domHeight;
