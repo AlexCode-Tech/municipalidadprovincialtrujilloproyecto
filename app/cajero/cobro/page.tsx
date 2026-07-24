@@ -628,7 +628,7 @@ export default function CajeroCobroPage() {
             </p>
             <p><strong>Razón Social:</strong> {tramite.negocio.razonSocial}</p>
             <p><strong>RUC:</strong> {tramite.negocio.ruc}</p>
-            <p><strong>Dirección del Local a Licenciar (Sucursal):</strong> <span className="font-bold text-slate-900">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</span></p>
+            <p><strong>Dirección del Local a Licenciar (Sucursal):</strong> {tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</p>
             <p><strong>Domicilio Fiscal (SUNAT):</strong> {tramite.negocio.domicilioFiscal}</p>
           </div>
 
