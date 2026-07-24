@@ -242,6 +242,8 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             negocioId: negocio.id,
             direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
+            planoUrl: fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf",
+            planoNombre: fileName || "Plano_Arquitectonico_Validado.pdf",
             tipoTramite,
             poseeCambiosEstructura: tipoTramite === "RENOVACION" && tieneCambios,
             confirmacionSinCambios: tipoTramite === "RENOVACION" && !tieneCambios
@@ -262,8 +264,8 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           return;
         }
 
-        const tramite = (await tramiteRes.json()) as { id: string };
-        tramiteId = tramite.id;
+        const data = (await tramiteRes.json()) as { id: string };
+        tramiteId = data.id;
         router.push(presencial ? `/cajero/cobro?tramiteId=${tramiteId}` : `/negocio/pago?tramiteId=${tramiteId}`);
       } else {
         // Flujo NEGOCIO: Enviar datos fiscales ingresados por el usuario para actualizar/crear su negocio
@@ -272,6 +274,8 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
+            planoUrl: fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf",
+            planoNombre: fileName || "Plano_Arquitectonico_Validado.pdf",
             ruc: result.data.ruc,
             razonSocial: result.data.razonSocial,
             domicilioFiscal: result.data.domicilioFiscal,

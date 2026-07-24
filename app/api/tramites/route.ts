@@ -247,8 +247,14 @@ export async function POST(request: NextRequest) {
     const tramite = await getPrisma().tramite.create({
       data: {
         negocioId,
-        direccionTrujillo: typeof body.direccionTrujillo === "string" ? body.direccionTrujillo : (typeof body.domicilioFiscal === "string" ? body.domicilioFiscal : undefined),
-        planoUrl: typeof body.planoUrl === "string" ? body.planoUrl : undefined,
+        planoUrl: typeof body.planoUrl === "string" && body.planoUrl
+          ? body.planoUrl
+          : (typeof body.planoNombre === "string" && body.planoNombre
+            ? body.planoNombre
+            : "/uploads/Plano_Arquitectonico_Validado.pdf"),
+        planosUrl: typeof body.planoUrl === "string" && body.planoUrl
+          ? body.planoUrl
+          : "/uploads/Plano_Arquitectonico_Validado.pdf",
         planoValidado: isRenovacion && confirmacionSinCambios ? true : (body.planoValidado === true),
         codigo,
         cajeroId,

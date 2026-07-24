@@ -242,6 +242,8 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             negocioId: negocio.id,
             direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
+            planoUrl: fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf",
+            planoNombre: fileName || "Plano_Arquitectonico_Validado.pdf",
             tipoTramite,
             poseeCambiosEstructura: tipoTramite === "RENOVACION" && tieneCambios,
             confirmacionSinCambios: tipoTramite === "RENOVACION" && !tieneCambios
@@ -272,6 +274,8 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
+            planoUrl: fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf",
+            planoNombre: fileName || "Plano_Arquitectonico_Validado.pdf",
             ruc: result.data.ruc,
             razonSocial: result.data.razonSocial,
             domicilioFiscal: result.data.domicilioFiscal,

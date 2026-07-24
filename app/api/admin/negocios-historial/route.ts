@@ -43,6 +43,14 @@ export async function GET(request: NextRequest) {
     const historial: any[] = [];
 
     for (const t of tramites) {
+      // Determinar la URL del plano validado para este trámite
+      const planoEfectivoUrl =
+        t.planoUrl ||
+        t.planosUrl ||
+        (t.planoValidado || t.tipoTramite === "INICIAL" || t.poseeCambiosEstructura
+          ? "/uploads/Plano_Arquitectonico_Validado.pdf"
+          : "/uploads/Plano_Arquitectonico_Validado.pdf");
+
       // 1. Registro inicial de la solicitud / sucursal
       historial.push({
         id: `reg-${t.id}`,
@@ -55,7 +63,7 @@ export async function GET(request: NextRequest) {
         direccionSucursal: t.direccionTrujillo || t.negocio.domicilioFiscal,
         tipoModificacion: "Registro de Nueva Solicitud de Sucursal",
         descripcion: `Se registró la solicitud de licencia para la sucursal en ${t.direccionTrujillo || t.negocio.domicilioFiscal}`,
-        planoUrl: t.planoUrl,
+        planoUrl: planoEfectivoUrl,
         estadoResultante: t.estado,
       });
 
@@ -72,7 +80,7 @@ export async function GET(request: NextRequest) {
           direccionSucursal: t.direccionTrujillo || t.negocio.domicilioFiscal,
           tipoModificacion: "Emisión / Modificación de Fechas de Licencia",
           descripcion: `Licencia N° ${t.licencia.numero} configurada. Inicio: ${new Date(t.licencia.emitidaEn).toLocaleString("es-PE")} - Vence: ${new Date(t.licencia.venceEn).toLocaleString("es-PE")}`,
-          planoUrl: t.planoUrl,
+          planoUrl: planoEfectivoUrl,
           estadoResultante: t.estado,
         });
       }
@@ -90,7 +98,7 @@ export async function GET(request: NextRequest) {
           direccionSucursal: t.direccionTrujillo || t.negocio.domicilioFiscal,
           tipoModificacion: "Registro de Pago de Licencia",
           descripcion: `Cobro procesado por S/ ${p.monto.toFixed(2)} (${p.metodo}). Comprobante: ${p.numeroFactura || "Ticket de Caja"}`,
-          planoUrl: t.planoUrl,
+          planoUrl: planoEfectivoUrl,
           estadoResultante: "APROBADO",
         });
       }
@@ -108,7 +116,7 @@ export async function GET(request: NextRequest) {
           direccionSucursal: t.direccionTrujillo || t.negocio.domicilioFiscal,
           tipoModificacion: "Inspección Técnica de Seguridad",
           descripcion: `Inspección N° ${insp.numeroVisita} finalizada con resultado: ${insp.resultado}. ${insp.observaciones || ""}`,
-          planoUrl: t.planoUrl,
+          planoUrl: planoEfectivoUrl,
           estadoResultante: insp.resultado,
         });
       }
