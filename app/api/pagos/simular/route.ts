@@ -82,6 +82,10 @@ export async function POST(request: NextRequest) {
         detalle = "Pago simulado con Tarjeta de Débito / Crédito";
       }
 
+      // Generar correlativo autoincremental de 8 dígitos para la factura
+      const { generarSiguienteCorrelativoFactura } = require("@/lib/registrar-pago");
+      const numeroFactura = await generarSiguienteCorrelativoFactura(tx);
+
       // Registrar el pago simulado
       await tx.pago.create({
         data: {
@@ -94,6 +98,8 @@ export async function POST(request: NextRequest) {
           vueltoEfectivo: vueltoEfectivoInput,
           vueltoYape: vueltoYapeInput,
           estado: "APPROVED",
+          tipoComprobante: "FACTURA",
+          numeroFactura,
           detalleEstado: detalle,
           mercadoPagoId: `sim-${Date.now()}`
         }
@@ -132,9 +138,13 @@ export async function POST(request: NextRequest) {
 
     // Notificar por Correo y SMS al Inspector y al Negocio sobre la inspección de hoy
     const { notificarInspeccionesHoy } = require("@/lib/notificaciones");
-    void notificarInspeccionesHoy();
+    const pagoFinal = await prisma.pago.findFirst({
+      where: { tramiteId, estado: "APPROVED" },
+      orderBy: { creadoEn: "desc" },
+      select: { numeroFactura: true, id: true }
+    });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, pagoId: pagoFinal?.id, numeroFactura: pagoFinal?.numeroFactura || "F001-00000001" });
   } catch (error) {
     console.error("Error al simular pago del trámite:", error);
     return NextResponse.json({ error: "No se pudo simular el pago del trámite." }, { status: 500 });

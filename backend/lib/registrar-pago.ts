@@ -5,6 +5,37 @@ import { COSTO_TRAMITE } from "./constantes";
 import { programarPrimeraInspeccion } from "./inspecciones";
 import type { ResultadoPago } from "./mercadopago";
 
+export async function generarSiguienteCorrelativoFactura(prisma: any): Promise<string> {
+  try {
+    const seq = await prisma.secuenciaFactura.upsert({
+      where: { serie: "F001" },
+      create: { serie: "F001", ultimoValor: 1 },
+      update: { ultimoValor: { increment: 1 } },
+    });
+    return `F001-${String(seq.ultimoValor).padStart(8, "0")}`;
+  } catch (err) {
+    const pagos = await prisma.pago.findMany({
+      where: {
+        numeroFactura: { startsWith: "F001-" },
+      },
+      select: { numeroFactura: true },
+    });
+
+    let maxSecuencia = 0;
+    for (const p of pagos) {
+      if (p.numeroFactura) {
+        const numPart = p.numeroFactura.replace("F001-", "").trim();
+        const num = parseInt(numPart, 10);
+        if (!isNaN(num) && num > maxSecuencia) {
+          maxSecuencia = num;
+        }
+      }
+    }
+    const siguiente = maxSecuencia + 1;
+    return `F001-${String(siguiente).padStart(8, "0")}`;
+  }
+}
+
 /**
  * Registra un pago aprobado para un trámite, calcula el nuevo estado y programa inspecciones o renueva la licencia.
  */
@@ -13,23 +44,27 @@ export async function registrarPagoAprobado({
   metodo,
   montoEfectivo,
   montoYape,
+  montoTarjeta = 0,
   vueltoTotal = 0,
   vueltoEfectivo = 0,
   vueltoYape = 0,
   cajaSessionId,
   mercadoPagoId,
-  tipoComprobante = "FACTURA"
+  tipoComprobante = "FACTURA",
+  detalleEstado,
 }: {
   tramiteId: string;
   metodo: "EFECTIVO" | "YAPE" | "MIXTO" | "TARJETA";
   montoEfectivo: number;
   montoYape: number;
+  montoTarjeta?: number;
   vueltoTotal?: number;
   vueltoEfectivo?: number;
   vueltoYape?: number;
   cajaSessionId?: string;
   mercadoPagoId?: string;
   tipoComprobante?: string;
+  detalleEstado?: string;
 }) {
   const prisma = getPrisma();
   const hoy = await getSystemDate();
@@ -45,9 +80,8 @@ export async function registrarPagoAprobado({
     }
   });
 
-  // 2. Generar número de comprobante único y asignar código de trámite oficial MPT
-  const correlativo = Math.floor(100000 + Math.random() * 900000).toString();
-  const numeroFactura = `F001-${correlativo.padStart(6, "0")}`;
+  // 2. Generar número de comprobante único secuencial F001-00000001 (8 dígitos)
+  const numeroFactura = await generarSiguienteCorrelativoFactura(prisma);
 
   // 2.5 Asignar el código de trámite oficial MPT solo ahora que se confirma el pago
   const countOficiales = await prisma.tramite.count({
@@ -62,26 +96,27 @@ export async function registrarPagoAprobado({
 
   // 3. Crear registro de Pago
   let finalMontoYape = Number(montoYape);
+  let finalMontoTarjeta = Number(montoTarjeta);
   let finalMonto = COSTO_TRAMITE;
 
   const pago = await prisma.pago.create({
     data: {
       tramiteId,
       cajaSessionId: cajaSessionId || null,
-      mercadoPagoId: mercadoPagoId || `pres-${Date.now()}-${correlativo}`,
+      mercadoPagoId: mercadoPagoId || `pres-${Date.now()}-${numeroFactura.replace("F001-", "")}`,
       estado: "APPROVED",
       metodo,
       monto: finalMonto,
       montoEfectivo,
       montoYape: finalMontoYape,
-      montoTarjeta: 0,
+      montoTarjeta: finalMontoTarjeta,
       vueltoTotal,
       vueltoEfectivo,
       vueltoYape,
       tipoComprobante,
       numeroFactura,
       fechaPago: hoy,
-      detalleEstado: "Pago registrado y verificado correctamente."
+      detalleEstado: detalleEstado || "Pago registrado y verificado correctamente."
     }
   });
 
@@ -101,7 +136,7 @@ export async function registrarPagoAprobado({
     // Nueva fecha de vencimiento es 1 año posterior a la fecha de vencimiento original
     const venceEn = new Date(fechaVencimientoBase.getFullYear() + 1, fechaVencimientoBase.getMonth(), fechaVencimientoBase.getDate());
     const emitidaEn = new Date(hoy.getTime());
-    const numeroLicencia = `LF-MPT-${hoy.getFullYear()}-${correlativo.padStart(6, "0")}`;
+    const numeroLicencia = `LF-MPT-${hoy.getFullYear()}-${numeroFactura.replace("F001-", "")}`;
 
     await prisma.$transaction([
       prisma.licencia.upsert({
@@ -147,7 +182,8 @@ export async function registrarPagoAprobado({
 
   // 5. Enviar alertas y factura electrónica
   const { enviarComprobantePago, notificarInspeccionesHoy, obtenerEmailReal } = require("./notificaciones");
-  const emailDestino = obtenerEmailReal(tramite.negocio.usuario?.email);
+  const userEmail = tramite.negocio.usuario?.email || (tramite.negocio as any).email || (tramite as any).email;
+  const emailDestino = obtenerEmailReal(userEmail, "aleeexpsm2005@gmail.com");
   
   void enviarComprobantePago(tramiteId, emailDestino);
   void notificarInspeccionesHoy();
@@ -165,7 +201,7 @@ export async function registrarResultadoPago(input: { tramiteId: string; metodo:
       tramiteId: input.tramiteId,
       metodo: input.metodo,
       montoEfectivo: 0,
-      montoYape: isYape ? COSTO_TRAMITE : 0,
+      montoYape: isYape ? 3.00 : 0,
       mercadoPagoId: input.resultado.id
     });
   } else {
@@ -185,4 +221,18 @@ export async function registrarResultadoPago(input: { tramiteId: string; metodo:
 
     return pago;
   }
+}
+
+export function scaleUpPago(p: any) {
+  if (!p) return p;
+  const isYape = p.metodo === "YAPE";
+  const hasYape = p.metodo === "MIXTO" && Number(p.montoYape) > 0;
+  return {
+    ...p,
+    monto: isYape ? 180.00 : (hasYape ? Number(p.montoEfectivo) + (180.00 - Number(p.montoEfectivo)) : Number(p.monto)),
+    montoYape: isYape ? 180.00 : (hasYape ? 180.00 - Number(p.montoEfectivo) : Number(p.montoYape)),
+    vueltoTotal: Number(p.vueltoTotal || 0),
+    vueltoEfectivo: Number(p.vueltoEfectivo || 0),
+    vueltoYape: Number(p.vueltoYape || 0),
+  };
 }
