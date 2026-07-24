@@ -299,9 +299,14 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
             <td><strong>${tramite.negocio.ruc}</strong></td>
           </tr>
           <tr>
-            <td valign="top">Establecimiento del Emisor</td>
+            <td valign="top">Domicilio Fiscal (SUNAT)</td>
             <td valign="top">:</td>
             <td><strong>${tramite.negocio.domicilioFiscal.toUpperCase()}</strong></td>
+          </tr>
+          <tr>
+            <td valign="top">Local a Licenciar (Sucursal)</td>
+            <td valign="top">:</td>
+            <td><strong style="color: #0b4278;">${(tramite.direccionTrujillo || tramite.negocio.domicilioFiscal).toUpperCase()}</strong></td>
           </tr>
           <tr>
             <td>Tipo de Moneda</td>
@@ -375,7 +380,7 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
     `;
 
     // Texto plano alternativo
-    const textFactura = `MUNICIPALIDAD PROVINCIAL DE TRUJILLO\nRUC: 20175639391\nFACTURA ELECTRONICA: ${numeroComprobante}\nFecha Emisión: ${fechaEmisionStr}\nFecha Vencimiento: ${fechaVencimientoStr}\nSeñor(es): ${tramite.negocio.razonSocial.toUpperCase()}\nRUC: ${tramite.negocio.ruc}\nEstablecimiento: ${tramite.negocio.domicilioFiscal.toUpperCase()}\nMoneda: SOLES\nObservación: ORDEN DE SERVICIO N. ${tramite.codigo}\n\nDETALLE:\n1.00 UNIDAD - SERV-MPT - DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO - Valor Unitario: 152.54\n\nSub Total Ventas: S/ 152.54\nIGV (18%): S/ 27.46\nIMPORTE TOTAL: S/ 180.00\nSON: CIENTO OCHENTA CON 00/100 SOLES\n\nEsta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.`;
+    const textFactura = `MUNICIPALIDAD PROVINCIAL DE TRUJILLO\nRUC: 20175639391\nFACTURA ELECTRONICA: ${numeroComprobante}\nFecha Emisión: ${fechaEmisionStr}\nFecha Vencimiento: ${fechaVencimientoStr}\nSeñor(es): ${tramite.negocio.razonSocial.toUpperCase()}\nRUC: ${tramite.negocio.ruc}\nDomicilio Fiscal: ${tramite.negocio.domicilioFiscal.toUpperCase()}\nLocal a Licenciar (Sucursal): ${(tramite.direccionTrujillo || tramite.negocio.domicilioFiscal).toUpperCase()}\nMoneda: SOLES\nObservación: ORDEN DE SERVICIO N. ${tramite.codigo}\n\nDETALLE:\n1.00 UNIDAD - SERV-MPT - DERECHO DE TRAMITE Y EMISION DE LICENCIA DE FUNCIONAMIENTO MUNICIPAL DE TRUJILLO - Valor Unitario: 152.54\n\nSub Total Ventas: S/ 152.54\nIGV (18%): S/ 27.46\nIMPORTE TOTAL: S/ 180.00\nSON: CIENTO OCHENTA CON 00/100 SOLES\n\nEsta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.`;
 
     // Generar el Buffer del PDF de la factura
     const { generarFacturaPdf } = require("./factura-pdf");
@@ -389,6 +394,7 @@ export async function enviarComprobantePago(tramiteId: string, emailDestino: str
         razonSocial: tramite.negocio.razonSocial,
         ruc: tramite.negocio.ruc,
         domicilioFiscal: tramite.negocio.domicilioFiscal,
+        direccionSucursal: tramite.direccionTrujillo || tramite.negocio.domicilioFiscal,
         codigoTramite: tramite.codigo,
         hashSimulado,
       });

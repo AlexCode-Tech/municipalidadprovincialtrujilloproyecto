@@ -478,6 +478,11 @@ export default function CajeroCobroPage() {
               <span className="font-bold uppercase">{tramite.negocio.domicilioFiscal}</span>
             </div>
             <div className="flex">
+              <span className="w-40 font-normal">Local a Licenciar (Sucursal)</span>
+              <span className="w-3 text-center">:</span>
+              <span className="font-bold uppercase text-blue-900">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</span>
+            </div>
+            <div className="flex">
               <span className="w-40 font-normal">Forma de Pago</span>
               <span className="w-3 text-center">:</span>
               <span className="font-bold uppercase">Contado - {lastDesglose || desgloseCalculado}</span>

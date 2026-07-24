@@ -13,6 +13,7 @@ type LicensePdfData = {
   razonSocial: string;
   ruc: string;
   domicilio: string;
+  sucursal?: string;
   emitida: Date;
   vence: Date;
   vencida: boolean;
@@ -132,6 +133,9 @@ function renderPdf(data: LicensePdfData) {
     y = drawDataRow(doc, "Razón social:", data.razonSocial.toUpperCase(), y);
     y = drawDataRow(doc, "RUC:", data.ruc, y);
     y = drawDataRow(doc, "Domicilio fiscal:", data.domicilio, y);
+    if (data.sucursal) {
+      y = drawDataRow(doc, "Local a Licenciar (Sucursal):", data.sucursal.toUpperCase(), y);
+    }
     y = drawDataRow(doc, "Licencia N.°:", data.numero, y);
     y = drawDataRow(doc, "Fecha de emisión:", formatDate(data.emitida), y);
     y = drawDataRow(doc, "Vigente hasta:", formatDate(data.vence), y);
@@ -275,7 +279,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
     numero: tramite.licencia.numero,
     razonSocial: tramite.negocio.razonSocial,
     ruc: tramite.negocio.ruc,
-    domicilio: `${tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}, ${tramite.negocio.distrito}`,
+    domicilio: `${tramite.negocio.domicilioFiscal}, ${tramite.negocio.distrito}`,
+    sucursal: `${tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}, ${tramite.negocio.distrito}`,
     emitida: tramite.licencia.emitidaEn,
     vence: tramite.licencia.venceEn,
     vencida,

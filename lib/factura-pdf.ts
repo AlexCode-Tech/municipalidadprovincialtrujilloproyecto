@@ -8,6 +8,7 @@ export type DatosFacturaPdf = {
   razonSocial: string;
   ruc: string;
   domicilioFiscal: string;
+  direccionSucursal?: string;
   codigoTramite?: string;
   hashSimulado?: string;
 };
@@ -90,16 +91,24 @@ export function generarFacturaPdf(datos: DatosFacturaPdf): Promise<Buffer> {
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.ruc, val1X, y);
 
-    // Establecimiento del Emisor
+    // Domicilio Fiscal
     y += lineGap;
-    doc.font("Helvetica").text("Establecimiento del", col1X, y);
-    doc.text("Emisor", col1X, y + 10);
+    doc.font("Helvetica").text("Domicilio Fiscal", col1X, y);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text(datos.domicilioFiscal.toUpperCase(), val1X, y, { width: 380 });
-    const domHeight = Math.max(18, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);
+    const domHeight = Math.max(14, doc.heightOfString(datos.domicilioFiscal.toUpperCase(), { width: 380 }) + 2);
+
+    // Local a Licenciar (Sucursal)
+    y += domHeight;
+    doc.font("Helvetica").text("Local / Sucursal", col1X, y);
+    doc.text("a Licenciar", col1X, y + 9);
+    doc.text(":", col1X + 105, y);
+    const sucText = (datos.direccionSucursal || datos.domicilioFiscal).toUpperCase();
+    doc.font("Helvetica-Bold").text(sucText, val1X, y, { width: 380 });
+    const sucHeight = Math.max(18, doc.heightOfString(sucText, { width: 380 }) + 2);
 
     // Tipo de Moneda
-    y += domHeight;
+    y += sucHeight;
     doc.font("Helvetica").text("Tipo de Moneda", col1X, y);
     doc.text(":", col1X + 105, y);
     doc.font("Helvetica-Bold").text("SOLES", val1X, y);

@@ -23,6 +23,7 @@ type Pago = {
   detalleEstado?: string | null;
   tramite: {
     codigo: string;
+    direccionTrujillo?: string | null;
     negocio: {
       razonSocial: string;
       ruc: string;
@@ -362,7 +363,8 @@ export default function AdminSupervisionPage() {
                   <div>
                     <p><strong>Razón Social:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.razonSocial}</span></p>
                     <p className="mt-1"><strong>RUC:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.ruc}</span></p>
-                    <p className="mt-1"><strong>Dirección:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.domicilioFiscal || "—"}</span></p>
+                    <p className="mt-1"><strong>Domicilio Fiscal:</strong> <span className="font-normal">{selectedPagoForInvoice.tramite.negocio.domicilioFiscal || "—"}</span></p>
+                    <p className="mt-1"><strong>Local a Licenciar (Sucursal):</strong> <span className="font-bold text-blue-900">{selectedPagoForInvoice.tramite.direccionTrujillo || selectedPagoForInvoice.tramite.negocio.domicilioFiscal}</span></p>
                   </div>
                   <div>
                     <p><strong>Fecha Pago:</strong> <span className="font-normal">{new Date(selectedPagoForInvoice.fechaPago).toLocaleDateString("es-PE")}</span></p>

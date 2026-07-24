@@ -61,6 +61,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ tramiteId:
     razonSocial: tramite.negocio.razonSocial,
     ruc: tramite.negocio.ruc,
     domicilioFiscal: tramite.negocio.domicilioFiscal,
+    direccionSucursal: tramite.direccionTrujillo || tramite.negocio.domicilioFiscal,
     codigoTramite: tramite.codigo,
   });
 
