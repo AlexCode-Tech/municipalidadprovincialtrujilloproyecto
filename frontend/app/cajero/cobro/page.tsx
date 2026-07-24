@@ -453,48 +453,48 @@ export default function CajeroCobroPage() {
 
           <div className="space-y-1 text-[11px] leading-snug">
             <div className="flex">
-              <span className="w-40 font-normal">Fecha de Vencimiento</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Fecha de Vencimiento</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold">{new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString("es-PE")}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Fecha de Emisión</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Fecha de Emisión</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold">{fechaHoyFormatted}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Señor(es)</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Señor(es)</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase">{tramite.negocio.razonSocial}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">RUC</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">RUC</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold">{tramite.negocio.ruc}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Establecimiento del Emisor</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Domicilio Fiscal (SUNAT)</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase">{tramite.negocio.domicilioFiscal}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Local a Licenciar (Sucursal)</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Dirección del Local a Licenciar (Sucursal)</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase text-blue-900">{tramite.direccionTrujillo || tramite.negocio.domicilioFiscal}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Forma de Pago</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Forma de Pago</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase">Contado - {lastDesglose || desgloseCalculado}</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Tipo de Moneda</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Tipo de Moneda</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold">SOLES</span>
             </div>
             <div className="flex">
-              <span className="w-40 font-normal">Observación</span>
-              <span className="w-3 text-center">:</span>
+              <span className="w-60 font-normal shrink-0">Observación</span>
+              <span className="w-3 text-center shrink-0">:</span>
               <span className="font-bold uppercase">ORDEN DE SERVICIO N. {tramite.codigo} ({lastDesglose || desgloseCalculado})</span>
             </div>
           </div>
