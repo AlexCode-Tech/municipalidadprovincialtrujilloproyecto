@@ -11,11 +11,11 @@ const schema = z.discriminatedUnion("resultado", [
   z.object({ resultado: z.literal("OBSERVADO"), observaciones: z.string().min(10) }),
 ]);
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const access = await requireRole("INSPECTOR");
   if (access.error) return access.error;
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const input = schema.parse(await request.json());
     const current = await getPrisma().inspeccion.findFirstOrThrow({ where: { id, inspectorId: access.session.user.id }, include: { tramite: true } });
     const result = await getPrisma().$transaction(async (tx) => {

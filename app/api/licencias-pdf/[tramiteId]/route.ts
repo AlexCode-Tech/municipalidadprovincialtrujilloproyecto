@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { canAccessTramite, forbidden, requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
@@ -188,8 +188,8 @@ function renderPdf(data: LicensePdfData) {
   });
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ tramiteId: string }> }) {
-  const { tramiteId } = await params;
+export async function GET(request: NextRequest, context: { params: Promise<{ tramiteId: string }> }) {
+  const { tramiteId } = await context.params;
 
   if (tramiteId === "demo") {
     const buffer = await renderPdf({

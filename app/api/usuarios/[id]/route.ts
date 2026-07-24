@@ -4,11 +4,11 @@ import { getPrisma } from "@/lib/prisma";
 import { getSystemDate } from "@/lib/system-date";
 import { hash } from "bcryptjs";
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const access = await requireRole(request, "ADMIN");
   if (access.error) return access.error;
 
-  const { id } = await params;
+  const { id } = await context.params;
   const prisma = getPrisma();
 
   try {

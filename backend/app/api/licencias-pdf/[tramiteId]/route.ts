@@ -183,8 +183,8 @@ function renderPdf(data: LicensePdfData) {
   });
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ tramiteId: string }> }) {
-  const { tramiteId } = await params;
+export async function GET(_: Request, context: { params: Promise<{ tramiteId: string }> }) {
+  const { tramiteId } = await context.params;
 
   if (tramiteId === "demo") {
     const buffer = await renderPdf({

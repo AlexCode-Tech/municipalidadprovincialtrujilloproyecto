@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { canAccessTramite, forbidden, requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
 import { generarFacturaPdf } from "@/lib/factura-pdf";
@@ -6,8 +6,8 @@ import { getSystemDate } from "@/lib/system-date";
 
 export const runtime = "nodejs";
 
-export async function GET(_: Request, { params }: { params: Promise<{ tramiteId: string }> }) {
-  const { tramiteId } = await params;
+export async function GET(request: NextRequest, context: { params: Promise<{ tramiteId: string }> }) {
+  const { tramiteId } = await context.params;
 
   const access = await requireRole("NEGOCIO", "CAJERO", "INSPECTOR", "ADMIN");
   if (access.error) return access.error;
