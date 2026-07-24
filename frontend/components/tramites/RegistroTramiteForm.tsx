@@ -55,6 +55,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
   const [consultandoRuc, setConsultandoRuc] = useState(false);
   const [errorRuc, setErrorRuc] = useState("");
   const [fileName, setFileName] = useState("");
+  const [planoBase64, setPlanoBase64] = useState("");
   const [planoEstado, setPlanoEstado] = useState<PlanoEstado>("idle");
   const [planoMotivo, setPlanoMotivo] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -168,11 +169,21 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
       setPlanoMotivo("La imagen debe pesar entre 1 KB y 10 MB.");
       return;
     }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setPlanoBase64(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+
     void validarPlano(file);
   };
 
   const limpiarPlano = () => {
     setFileName("");
+    setPlanoBase64("");
     setPlanoEstado("idle");
     setPlanoMotivo("");
     if (fileRef.current) fileRef.current.value = "";
@@ -242,7 +253,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
             negocioId: negocio.id,
             direccionTrujillo: (values.direccionTrujillo as string) || result.data.direccionTrujillo || direccionTrujillo || result.data.domicilioFiscal,
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
-            planoUrl: fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf",
+            planoUrl: planoBase64 || (fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf"),
             planoNombre: fileName || "Plano_Arquitectonico_Validado.pdf",
             tipoTramite,
             poseeCambiosEstructura: tipoTramite === "RENOVACION" && tieneCambios,
@@ -274,7 +285,7 @@ export function RegistroTramiteForm({ presencial = false }: { presencial?: boole
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             planoValidado: tipoTramite === "INICIAL" || tieneCambios ? true : false,
-            planoUrl: fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf",
+            planoUrl: planoBase64 || (fileName ? `/uploads/${fileName}` : "/uploads/Plano_Arquitectonico_Validado.pdf"),
             planoNombre: fileName || "Plano_Arquitectonico_Validado.pdf",
             ruc: result.data.ruc,
             razonSocial: result.data.razonSocial,
