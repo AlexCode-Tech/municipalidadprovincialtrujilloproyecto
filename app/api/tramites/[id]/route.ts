@@ -3,6 +3,9 @@ import { canAccessTramite, forbidden, requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
 import { scaleUpPago } from "@/lib/registrar-pago";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const access = await requireRole(request, "NEGOCIO", "CAJERO", "INSPECTOR");
   if (access.error) return access.error;

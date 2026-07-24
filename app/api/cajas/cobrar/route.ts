@@ -4,6 +4,9 @@ import { getPrisma } from "@/lib/prisma";
 import { registrarPagoAprobado } from "@/lib/registrar-pago";
 import { COSTO_TRAMITE } from "@/lib/constantes";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function resolveUsuario(prisma: any, user: { id: string; email?: string | null; name?: string | null; rol: any }) {
   if (!user.email) return null;
   return prisma.usuario.findFirst({

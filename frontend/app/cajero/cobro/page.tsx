@@ -156,7 +156,10 @@ export default function CajeroCobroPage() {
 
     async function cargarDatos() {
       try {
-        const res = await fetch(`/api/tramites/${tramiteId}`);
+        const res = await fetch(`/api/tramites/${tramiteId}?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" }
+        });
         if (!res.ok) {
           setErrorMsg("No se pudo cargar el trámite solicitado.");
         } else {

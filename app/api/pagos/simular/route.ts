@@ -3,6 +3,9 @@ import { getPrisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/autorizacion";
 import { enviarComprobantePago } from "@/lib/notificaciones";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(request: NextRequest) {
   try {
     const access = await requireRole(request, "NEGOCIO", "CAJERO");
