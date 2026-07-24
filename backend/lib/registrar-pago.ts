@@ -5,6 +5,32 @@ import { COSTO_TRAMITE } from "./constantes";
 import { programarPrimeraInspeccion } from "./inspecciones";
 import type { ResultadoPago } from "./mercadopago";
 
+export async function generarCodigoOficialTramite(prisma: any, hoy: Date): Promise<string> {
+  try {
+    const tramites = await prisma.tramite.findMany({
+      where: { codigo: { startsWith: "MPT-" } },
+      select: { codigo: true },
+    });
+
+    let maxNum = 0;
+    for (const t of tramites) {
+      if (t.codigo) {
+        const parts = t.codigo.split("-");
+        const numPart = parts[parts.length - 1];
+        const num = parseInt(numPart, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+
+    const siguiente = maxNum + 1;
+    return `MPT-${hoy.getFullYear()}-${String(siguiente).padStart(6, "0")}`;
+  } catch {
+    return `MPT-${hoy.getFullYear()}-${Date.now().toString().slice(-6)}`;
+  }
+}
+
 export async function generarSiguienteCorrelativoFactura(prisma: any): Promise<string> {
   try {
     const seq = await prisma.secuenciaFactura.upsert({
@@ -83,16 +109,19 @@ export async function registrarPagoAprobado({
   // 2. Generar número de comprobante único secuencial F001-00000001 (8 dígitos)
   const numeroFactura = await generarSiguienteCorrelativoFactura(prisma);
 
-  // 2.5 Asignar el código de trámite oficial MPT solo ahora que se confirma el pago
-  const countOficiales = await prisma.tramite.count({
-    where: { codigo: { startsWith: "MPT-" } }
-  });
-  const nuevoCodigoOficial = `MPT-${hoy.getFullYear()}-${String(countOficiales + 1).padStart(6, "0")}`;
-
-  await prisma.tramite.update({
-    where: { id: tramiteId },
-    data: { codigo: nuevoCodigoOficial }
-  });
+  // 2.5 Asignar el código de trámite oficial MPT si aún no lo tiene
+  if (!tramite.codigo || !tramite.codigo.startsWith("MPT-")) {
+    const nuevoCodigoOficial = await generarCodigoOficialTramite(prisma, hoy);
+    try {
+      await prisma.tramite.update({
+        where: { id: tramiteId },
+        data: { codigo: nuevoCodigoOficial }
+      });
+      tramite.codigo = nuevoCodigoOficial;
+    } catch (e) {
+      console.warn("No se pudo actualizar el código oficial MPT del trámite:", e);
+    }
+  }
 
   // 3. Crear registro de Pago
   let finalMontoYape = Number(montoYape);
