@@ -247,6 +247,9 @@ export async function POST(request: NextRequest) {
     const tramite = await getPrisma().tramite.create({
       data: {
         negocioId,
+        direccionTrujillo: (typeof body.direccionTrujillo === "string" && body.direccionTrujillo.trim())
+          ? body.direccionTrujillo.trim()
+          : (typeof body.domicilioFiscal === "string" ? body.domicilioFiscal.trim() : undefined),
         planoUrl: typeof body.planoUrl === "string" && body.planoUrl
           ? body.planoUrl
           : (typeof body.planoNombre === "string" && body.planoNombre
