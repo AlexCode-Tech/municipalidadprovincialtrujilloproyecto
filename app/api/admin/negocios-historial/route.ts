@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,7 +117,13 @@ export async function GET(request: NextRequest) {
     // Ordenar historial completo de más reciente a más antiguo
     historial.sort((a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime());
 
-    return NextResponse.json(historial);
+    return NextResponse.json(historial, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    });
   } catch (error) {
     console.error("Error al obtener historial de negocios:", error);
     return NextResponse.json(

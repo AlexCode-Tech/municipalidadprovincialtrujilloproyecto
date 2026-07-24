@@ -185,9 +185,20 @@ export default function AdminNegociosPage() {
 
     const interval = setInterval(() => {
       void refrescarTodoSilencioso();
-    }, 3000);
+    }, 2000);
 
-    return () => clearInterval(interval);
+    const handleFocusOrVisibility = () => {
+      void refrescarTodoSilencioso();
+    };
+
+    window.addEventListener("focus", handleFocusOrVisibility);
+    document.addEventListener("visibilitychange", handleFocusOrVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocusOrVisibility);
+      document.removeEventListener("visibilitychange", handleFocusOrVisibility);
+    };
   }, []);
 
   useEffect(() => {

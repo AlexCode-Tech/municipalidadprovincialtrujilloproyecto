@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/autorizacion";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const access = await requireRole(request, "ADMIN");
@@ -54,5 +55,11 @@ export async function GET(request: NextRequest) {
     orderBy: { creadoEn: "desc" },
   });
 
-  return NextResponse.json(negocios);
+  return NextResponse.json(negocios, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    },
+  });
 }
